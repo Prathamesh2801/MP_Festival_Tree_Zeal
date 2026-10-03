@@ -8,15 +8,17 @@ import {
   HiOutlineCog6Tooth,
   HiOutlineLockClosed,
 } from 'react-icons/hi2'
+import { TbGenderFemale, TbGenderMale } from 'react-icons/tb'
 import Button from '../components/ui/Button'
 import GlassCard from '../components/ui/GlassCard'
 import QrScanner from '../components/ui/QrScanner'
 import StatusView from '../components/ui/StatusView'
-import { ease, fadeUp, tap } from '../constants/motion'
+import { ease, fadeUp, rise, stagger } from '../constants/motion'
 import { useDevice } from '../hooks/useDevice'
-import { fetchInfo, fromServer, generate, targetImg } from '../services/api/festival'
+import { fetchInfo, fromServer, generate } from '../services/api/festival'
 
 const REQUIRED = ['wall', 'm', 'f', 'info']
+const STEPS = ['info', 'gender', 'selfie']
 
 // Wall QR = `<app url>#/control?wall=..&m=..&f=..&info=..` → returns its query string, or null if not ours.
 function parseWallCode(text) {
@@ -31,11 +33,12 @@ function parseWallCode(text) {
 
 function Shell({ children }) {
   return (
-    <main className="relative flex min-h-full items-center justify-center p-4">
-      <Link to="/settings" aria-label="Settings" className="absolute top-4 right-4 text-white/20 transition hover:text-white/70">
+    // dvh = visible height (excludes tablet browser bars); safe-area padding keeps clear of notches
+    <main className="relative flex min-h-dvh items-center justify-center px-[max(1rem,env(safe-area-inset-left))] py-[max(1.5rem,env(safe-area-inset-top))]">
+      <Link to="/settings" aria-label="Settings" className="absolute top-4 right-4 z-10 text-white/20 transition hover:text-white/70">
         <HiOutlineCog6Tooth className="size-5" />
       </Link>
-      <div className="w-full max-w-2xl">{children}</div>
+      <div className="w-full max-w-xl">{children}</div>
     </main>
   )
 }
@@ -45,6 +48,62 @@ function BackButton({ onClick }) {
     <button onClick={onClick} className="mb-4 text-mist/70 transition hover:text-white" aria-label="Back">
       <HiOutlineArrowLeft className="size-5" />
     </button>
+  )
+}
+
+// Three-segment progress bar for info → gender → selfie; collapses on the later steps.
+function Steps({ current }) {
+  const visible = current >= 0
+  return (
+    <motion.div
+      initial={false}
+      animate={{ opacity: visible ? 1 : 0, height: visible ? 'auto' : 0 }}
+      transition={{ duration: 0.4, ease }}
+      className="overflow-hidden"
+    >
+      <div className="mx-auto mb-5 flex w-40 gap-2">
+        {STEPS.map((s, i) => (
+          <span key={s} className="h-1 flex-1 overflow-hidden rounded-full bg-white/10">
+            <motion.span
+              className="block h-full rounded-full bg-gold"
+              initial={false}
+              animate={{ width: i <= current ? '100%' : '0%' }}
+              transition={{ duration: 0.6, ease }}
+            />
+          </span>
+        ))}
+      </div>
+    </motion.div>
+  )
+}
+
+function GenderCard({ label, Icon, picked, dimmed, onPick }) {
+  return (
+    <motion.button
+      {...rise}
+      whileTap={{ scale: 0.96 }}
+      animate={picked ? { opacity: 1, y: 0, scale: 1.04 } : 'show'}
+      disabled={picked || dimmed}
+      onClick={onPick}
+      className={`group relative flex aspect-[4/5] flex-col items-center justify-center gap-4 overflow-hidden rounded-2xl border transition-[border-color,background-color,opacity] duration-500 ${
+        picked ? 'border-gold bg-gold/15' : 'border-white/10 bg-white/[0.04] hover:border-gold/60 hover:bg-white/[0.07]'
+      } ${dimmed ? 'opacity-40' : ''}`}
+    >
+      {/* soft glow that blooms on hover / pick */}
+      <span
+        className={`pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,rgb(217_183_121/0.28),transparent_65%)] transition-opacity duration-500 ${
+          picked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+        }`}
+      />
+      <span
+        className={`relative flex size-20 items-center justify-center rounded-full border transition-colors duration-500 sm:size-24 ${
+          picked ? 'border-gold bg-gold text-ink' : 'border-gold/40 text-gold group-hover:border-gold'
+        }`}
+      >
+        <Icon className="size-10 sm:size-12" strokeWidth={1.5} />
+      </span>
+      <span className="relative font-display text-xl sm:text-2xl">{label}</span>
+    </motion.button>
   )
 }
 
@@ -69,11 +128,12 @@ function Scan() {
 
   return (
     <motion.div {...fadeUp}>
-      <GlassCard className="p-6 sm:p-8">
+      <GlassCard className="p-5 text-center sm:p-8">
         <p className="text-xs uppercase tracking-[0.3em] text-gold">MP Festival Tree</p>
-        <h1 className="mt-2 font-display text-3xl">Scan a wall to begin</h1>
+        <h1 className="mt-2 font-display text-2xl sm:text-3xl">Scan a wall to begin</h1>
         <p className="mt-2 text-mist/75">Point the camera at the QR code on any display.</p>
-        <div className="relative mx-auto mt-6 max-w-md">
+        {/* width capped by screen height, so title + camera always fit without cropping */}
+        <div className="relative mx-auto mt-6 w-full max-w-[min(100%,48dvh)]">
           <QrScanner onResult={onResult} />
           <AnimatePresence>
             {invalid && (
@@ -125,6 +185,18 @@ function Flow({ wall, male, female, infoUrl }) {
     return () => clearInterval(t)
   }, [step])
 
+  // Picked card pulses briefly before the step changes.
+  useEffect(() => {
+    if (step !== 'gender' || !targetId) return
+    const t = setTimeout(() => setStep('selfie'), 450)
+    return () => clearTimeout(t)
+  }, [step, targetId])
+
+  const goGender = () => {
+    setTargetId(null)
+    setStep('gender')
+  }
+
   const submit = async () => {
     setStep('processing')
     try {
@@ -137,130 +209,131 @@ function Flow({ wall, male, female, infoUrl }) {
   }
 
   const genders = [
-    { label: 'Male', id: male },
-    { label: 'Female', id: female },
+    { label: 'Male', id: male, Icon: TbGenderMale },
+    { label: 'Female', id: female, Icon: TbGenderFemale },
   ]
 
   return (
-    // initial={false}: the wrapper in ControlPage already animates the first step in
-    <AnimatePresence mode="wait" initial={false}>
-      {step === 'info' && (
-        <motion.div key="info" {...fadeUp}>
-          <GlassCard className="p-8">
-            <BackButton onClick={() => navigate('/control')} />
-            <p className="text-xs uppercase tracking-[0.3em] text-gold">Your destination</p>
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.div key={info ? 'loaded' : 'loading'} {...fadeUp}>
-                <h1 className="mt-3 font-display text-4xl leading-tight">{info?.title || 'Loading…'}</h1>
-                <p className="mt-4 leading-relaxed whitespace-pre-line text-mist/85">{info?.description}</p>
-              </motion.div>
-            </AnimatePresence>
-            <Button onClick={() => setStep('gender')} disabled={!info} className="mt-8 w-full">
-              Continue
-            </Button>
-          </GlassCard>
-        </motion.div>
-      )}
-
-      {step === 'gender' && (
-        <motion.div key="gender" {...fadeUp}>
-          <GlassCard className="p-8">
-            <BackButton onClick={() => setStep('info')} />
-            <h1 className="font-display text-3xl">Choose your portrait</h1>
-            <div className="mt-6 grid grid-cols-2 gap-4">
-              {genders.map(({ label, id }, i) => (
-                <motion.button
-                  key={id}
-                  {...tap}
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.45, ease, delay: 0.08 * i }}
-                  onClick={() => {
-                    setTargetId(id)
-                    setStep('selfie')
-                  }}
-                  className="group overflow-hidden rounded-2xl border border-white/10 text-left transition-colors duration-300 hover:border-gold/70"
-                >
-                  <img
-                    src={targetImg(id)}
-                    alt=""
-                    className="aspect-[3/4] w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-                  />
-                  <span className="block p-4 font-medium">{label}</span>
-                </motion.button>
-              ))}
-            </div>
-          </GlassCard>
-        </motion.div>
-      )}
-
-      {step === 'selfie' && (
-        <motion.div key="selfie" {...fadeUp}>
-          <GlassCard className="p-8">
-            <BackButton onClick={() => setStep('gender')} />
-            <h1 className="font-display text-3xl">Take a selfie</h1>
-            <p className="mt-2 text-mist/75">Face the camera, good light, no sunglasses.</p>
-
-            <label className="mt-6 flex aspect-[3/4] max-h-[55vh] w-full cursor-pointer items-center justify-center overflow-hidden rounded-2xl border border-dashed border-white/20 bg-white/5">
-              <AnimatePresence mode="wait">
-                {preview ? (
-                  <motion.img
-                    key={preview}
-                    src={preview}
-                    alt="Selfie preview"
-                    initial={{ opacity: 0, scale: 1.03 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.5, ease }}
-                    className="size-full object-cover"
-                  />
-                ) : (
-                  <motion.span key="empty" {...fadeUp} className="flex flex-col items-center gap-3 text-mist/70">
-                    <HiOutlineCamera className="size-10 text-gold" />
-                    Tap to open camera
-                  </motion.span>
-                )}
+    <>
+      <Steps current={STEPS.indexOf(step)} />
+      {/* initial={false}: the wrapper in ControlPage already animates the first step in */}
+      <AnimatePresence mode="wait" initial={false}>
+        {step === 'info' && (
+          <motion.div key="info" {...fadeUp}>
+            <GlassCard className="p-5 sm:p-8">
+              <BackButton onClick={() => navigate('/control')} />
+              <p className="text-xs uppercase tracking-[0.3em] text-gold">Your destination</p>
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div key={info ? 'loaded' : 'loading'} {...fadeUp}>
+                  <h1 className="mt-3 font-display text-3xl leading-tight sm:text-4xl">{info?.title || 'Loading…'}</h1>
+                  <p className="mt-4 max-h-[40dvh] overflow-y-auto leading-relaxed whitespace-pre-line text-mist/85">
+                    {info?.description}
+                  </p>
+                </motion.div>
               </AnimatePresence>
-              <input
-                type="file"
-                accept="image/*"
-                capture="user"
-                className="sr-only"
-                onChange={(e) => e.target.files?.[0] && setFile(e.target.files[0])}
-              />
-            </label>
+              <Button onClick={goGender} disabled={!info} className="mt-8 w-full">
+                Continue
+              </Button>
+            </GlassCard>
+          </motion.div>
+        )}
 
-            <Button onClick={submit} disabled={!file} className="mt-6 w-full">
-              Create my portrait
+        {step === 'gender' && (
+          <motion.div key="gender" {...fadeUp}>
+            <GlassCard className="p-5 sm:p-8">
+              <BackButton onClick={() => setStep('info')} />
+              <h1 className="font-display text-2xl sm:text-3xl">Choose your portrait</h1>
+              <p className="mt-2 text-mist/75">Pick one to continue.</p>
+              <motion.div {...stagger} className="mt-6 grid grid-cols-2 gap-3 sm:gap-4">
+                {genders.map(({ label, id, Icon }) => (
+                  <GenderCard
+                    key={label}
+                    label={label}
+                    Icon={Icon}
+                    picked={targetId === id}
+                    dimmed={!!targetId && targetId !== id}
+                    onPick={() => setTargetId(id)}
+                  />
+                ))}
+              </motion.div>
+            </GlassCard>
+          </motion.div>
+        )}
+
+        {step === 'selfie' && (
+          <motion.div key="selfie" {...fadeUp}>
+            <GlassCard className="p-5 sm:p-8">
+              <BackButton onClick={goGender} />
+              <h1 className="font-display text-2xl sm:text-3xl">Take a selfie</h1>
+              <p className="mt-2 text-mist/75">Face the camera, good light, no sunglasses.</p>
+
+              {/* width derived from screen height, so the button below never falls off-screen */}
+              <label className="mx-auto mt-6 flex aspect-[3/4] w-full max-w-[calc(44dvh*3/4)] cursor-pointer items-center justify-center overflow-hidden rounded-2xl border border-dashed border-white/20 bg-white/5 transition-colors duration-300 hover:border-gold/50">
+                <AnimatePresence mode="wait">
+                  {preview ? (
+                    <motion.img
+                      key={preview}
+                      src={preview}
+                      alt="Selfie preview"
+                      initial={{ opacity: 0, scale: 1.03 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.5, ease }}
+                      className="size-full object-cover"
+                    />
+                  ) : (
+                    <motion.span key="empty" {...fadeUp} className="flex flex-col items-center gap-3 text-mist/70">
+                      <motion.span
+                        animate={{ scale: [1, 1.08, 1] }}
+                        transition={{ duration: 2.4, ease: 'easeInOut', repeat: Infinity }}
+                      >
+                        <HiOutlineCamera className="size-10 text-gold" />
+                      </motion.span>
+                      Tap to open camera
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="user"
+                  className="sr-only"
+                  onChange={(e) => e.target.files?.[0] && setFile(e.target.files[0])}
+                />
+              </label>
+
+              <Button onClick={submit} disabled={!file} className="mt-6 w-full">
+                Create my portrait
+              </Button>
+            </GlassCard>
+          </motion.div>
+        )}
+
+        {step === 'processing' && (
+          <motion.div key="processing" {...fadeUp}>
+            <StatusView status="generating" note={`Please wait · ${elapsed}s`} />
+          </motion.div>
+        )}
+
+        {step === 'result' && (
+          <motion.div key="result" {...fadeUp} className="space-y-4">
+            <StatusView status="completed" imageUrl={fromServer(result.final_image_url)} viewUrl={result.view_url} />
+            <Button variant="ghost" onClick={() => navigate('/control', { replace: true })} className="w-full">
+              Next visitor
             </Button>
-          </GlassCard>
-        </motion.div>
-      )}
+          </motion.div>
+        )}
 
-      {step === 'processing' && (
-        <motion.div key="processing" {...fadeUp}>
-          <StatusView status="generating" note={`Please wait · ${elapsed}s`} />
-        </motion.div>
-      )}
-
-      {step === 'result' && (
-        <motion.div key="result" {...fadeUp} className="space-y-4">
-          <StatusView status="completed" imageUrl={fromServer(result.final_image_url)} viewUrl={result.view_url} />
-          <Button variant="ghost" onClick={() => navigate('/control', { replace: true })} className="w-full">
-            Next visitor
-          </Button>
-        </motion.div>
-      )}
-
-      {step === 'error' && (
-        <motion.div key="error" {...fadeUp} className="space-y-4">
-          <StatusView status="failed" error={error} />
-          <Button onClick={() => setStep('selfie')} className="w-full">
-            <HiOutlineArrowPath className="size-5" /> Try again
-          </Button>
-        </motion.div>
-      )}
-    </AnimatePresence>
+        {step === 'error' && (
+          <motion.div key="error" {...fadeUp} className="space-y-4">
+            <StatusView status="failed" error={error} />
+            <Button onClick={() => setStep('selfie')} className="w-full">
+              <HiOutlineArrowPath className="size-5" /> Try again
+            </Button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   )
 }
 

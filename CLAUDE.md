@@ -26,7 +26,7 @@ src/
 ├── index.css                 Tailwind import, theme tokens, `glass` utility
 ├── config/config.js          ALL settings: apiBase, wallIdPrefix, failedShowMs, deviceStorageKey
 ├── constants/motion.js       shared easing + enter/exit presets
-├── services/api/festival.js  sseUrl(id), targetImg(id), fetchInfo(url), generate({sseId,id,file}), fromServer(url)
+├── services/api/festival.js  sseUrl(id), fetchInfo(url), generate({sseId,id,file}), fromServer(url)
 ├── hooks/
 │   ├── useFestivalStream.js  EventSource → { record, waitingSet, online }
 │   └── useDevice.js          localStorage { role: 'wall'|'controller', channel } → [device, save]
@@ -45,14 +45,14 @@ src/
 ## End-to-end flow
 1. **Setup** (`#/settings`, also via faint gear icon top-right): each device picks a role. Walls also get a channel number → stream id `wall-{channel}` (`config.wallIdPrefix`). Stored in localStorage.
 2. **Wall** (`#/wall`) opens `sse.php?sse_id=wall-N`.
-   - `waiting` event (every 60 s, random set) → Info JSON is fetched first, then video + title + QR switch together (video cross-fades in once it can play). QR links to
+   - `waiting` event (every 60 s, random set) → video cross-fades in once it can play; the QR (bottom-left, no text on the wall) swaps with it. QR links to
      `<app url>#/control?wall=wall-N&m=<Male id>&f=<Female id>&info=<Info url>`.
    - `status` event: `generating` → spinner overlay; `completed` (and not `downloaded`) → final image + QR of `view_url`; `failed` → error for `config.failedShowMs`, then back to the last set locally (server sends no `waiting` events while failed).
-   - "Reconnecting…" badge when the EventSource errors (it reconnects by itself; server closes streams every 300 s).
+   - Connection dot top-right: green = stream open, red = reconnecting (EventSource reconnects by itself; server closes streams every 300 s).
 3. **Handheld** (`#/control`) scans the wall QR with the **in-app scanner** (`QrScanner`, rear camera). `parseWallCode()` accepts only URLs whose hash query has `wall`, `m`, `f`, `info`, then navigates to `#/control?...`; anything else shows "That isn't a festival wall code". (Scanning with the native camera app also works — it opens the same link.)
    - Not set to role `controller` → "Not authorized" (localStorage lock keeps random phones out).
    - No params → scanner screen.
-   - Steps: **info** (title/description from Info JSON) → **gender** (Male/Female cards with `Target/{id}.png`) → **selfie** (native front camera, preview, retake) → **processing** (seconds counter) → **result** (StatusView + "Next visitor" → back to scanner) or **error** ("Try again" → selfie). Back arrow on info returns to the scanner.
+   - Steps: **info** (title/description from Info JSON) → **gender** (Male/Female icon cards, `react-icons/tb` gender icons; picked card pulses, then advances) → **selfie** (native front camera, preview, retake) → **processing** (seconds counter) → **result** (StatusView + "Next visitor" → back to scanner) or **error** ("Try again" → selfie). Back arrow on info returns to the scanner.
    - The flow is keyed on the query string, so a new scan cross-fades into a fresh flow.
 4. `generate()` POSTs to `api.php` with the **wall's** `sse_id`, so the wall's stream gets `generating` → `completed` too.
 5. Visitor scans the result QR → `view.php` (server resets the wall to `waiting`). Downloading via `download.php` sets `downloaded: true` → wall goes back to the video.
@@ -78,11 +78,11 @@ Base: `config.apiBase` (currently `http://192.168.1.88/ministack/MP_Festival_Tre
 - The in-app scanner needs HTTPS (camera permission) — another reason the online deployment must be https.
 
 ## Known gaps / next steps
-- `Videos/301–304.mp4` not uploaded yet (404) — wall shows just the background until then.
+- A `failed` record stays `failed` on the server forever (no reset, no `waiting` events) — a reloaded wall then shows the old error, then a blank screen. Ask colleague to reset `failed` → `waiting` (e.g. in `sse.php` after a delay). Manual clear: one successful `api.php` run + open its `view_url`.
 - Server lists `Swap/` and `Final/` directories publicly (visitor photos) — ask colleague for `Options -Indexes`.
 - Wall rotation continues while a visitor reads on the handheld (accepted; handheld keeps its scanned set). Optional future: server "lock" when scanned.
 - Wall stays on `completed` until visitor opens/downloads — add a local timeout if walls get stuck.
 - Selfies uploaded at full size — add canvas downscale if uploads are slow.
 - Device lock is a localStorage flag, not auth (backend has no auth either).
-- Not yet tested on real tablets (selfie camera, in-app QR scan) or a full end-to-end upload.
+- Backend end-to-end verified 2026-10-03 (generate ~11 s, view/download reset, dev proxy). Not yet tested on real tablets (selfie camera, in-app QR scan).
 - `qr-scanner` decode worker ships as a separate asset (`assets/qr-scanner-worker.min-*.js`) — keep it with the build.

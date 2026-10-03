@@ -3,12 +3,11 @@ import { Link, Navigate } from 'react-router'
 import { AnimatePresence, motion } from 'framer-motion'
 import { QRCodeSVG } from 'qrcode.react'
 import { HiOutlineCog6Tooth } from 'react-icons/hi2'
-import GlassCard from '../components/ui/GlassCard'
 import StatusView from '../components/ui/StatusView'
 import { ease, fade, fadeUp } from '../constants/motion'
 import { useDevice } from '../hooks/useDevice'
 import { useFestivalStream } from '../hooks/useFestivalStream'
-import { fetchInfo, fromServer } from '../services/api/festival'
+import { fromServer } from '../services/api/festival'
 import config from '../config/config'
 
 // Link the controller scans. Built from the current URL, so it follows the online host.
@@ -40,21 +39,8 @@ function BackgroundVideo({ src }) {
 export default function WallPage() {
   const [device] = useDevice()
   const sseId = device.role === 'wall' && device.channel ? `${config.wallIdPrefix}${device.channel}` : null
-  const { record, waitingSet, online } = useFestivalStream(sseId)
-  // Video, title and QR switch together, only after the new set's info has loaded.
-  const [slide, setSlide] = useState(null)
+  const { record, waitingSet: slide, online } = useFestivalStream(sseId)
   const [dismissedVersion, setDismissedVersion] = useState(null)
-
-  useEffect(() => {
-    if (!waitingSet) return
-    let alive = true
-    fetchInfo(waitingSet.Info)
-      .catch(() => null)
-      .then((info) => alive && setSlide({ set: waitingSet, info }))
-    return () => {
-      alive = false
-    }
-  }, [waitingSet])
 
   // Server sends no new "waiting" events while failed, so fall back to the last set locally.
   useEffect(() => {
@@ -73,9 +59,7 @@ export default function WallPage() {
 
   return (
     <main className="relative h-full overflow-hidden bg-ink">
-      <AnimatePresence>{slide && <BackgroundVideo key={slide.set.Video} src={fromServer(slide.set.Video)} />}</AnimatePresence>
-      <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/30 to-transparent" />
-
+      <AnimatePresence>{slide && <BackgroundVideo key={slide.Video} src={fromServer(slide.Video)} />}</AnimatePresence>
       <AnimatePresence mode="wait">
         {overlay ? (
           <motion.div
@@ -94,38 +78,31 @@ export default function WallPage() {
           </motion.div>
         ) : (
           slide && (
+            // Only the QR over the video. Keyed on the set so each new set's QR swaps in.
             <motion.div
-              key={`set-${slide.set.set}`}
-              {...fadeUp}
+              key={`set-${slide.set}`}
+              initial={{ opacity: 0, y: 24, scale: 0.94 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 12, scale: 0.97 }}
               transition={{ duration: 0.8, ease }}
-              className="absolute inset-x-0 bottom-0 flex flex-col items-end justify-between gap-6 p-8 md:flex-row"
+              className="absolute bottom-[4vmin] left-[4vmin] origin-bottom-left rounded-[2.5vmin] bg-white p-[1.6vmin] shadow-[0_20px_60px_-15px_rgb(0_0_0/0.7)]"
             >
-              <div className="max-w-2xl self-start md:self-end">
-                <p className="text-xs uppercase tracking-[0.3em] text-gold">MP Festival Tree</p>
-                {slide.info?.title && <h1 className="mt-3 font-display text-5xl leading-tight">{slide.info.title}</h1>}
-              </div>
-              <GlassCard className="flex items-center gap-5 p-5">
-                <div className="rounded-2xl bg-white p-3">
-                  <QRCodeSVG value={controlLink(sseId, slide.set)} size={160} />
-                </div>
-                <div>
-                  <p className="font-display text-2xl">Scan to begin</p>
-                  <p className="mt-1 text-sm text-mist/70">Use the festival tablet</p>
-                </div>
-              </GlassCard>
+              <QRCodeSVG value={controlLink(sseId, slide)} size={256} className="block size-[clamp(120px,22vmin,260px)]" />
             </motion.div>
           )
         )}
       </AnimatePresence>
 
       <div className="absolute top-4 right-4 flex items-center gap-3">
-        <AnimatePresence>
-          {!online && (
-            <motion.span {...fade} className="glass rounded-full px-3 py-1 text-xs text-gold">
-              Reconnecting…
-            </motion.span>
-          )}
-        </AnimatePresence>
+        <span
+          role="status"
+          aria-label={online ? 'Connected' : 'Reconnecting'}
+          title={online ? 'Connected' : 'Reconnecting'}
+          className="relative flex size-2.5"
+        >
+          {online && <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400/60" />}
+          <span className={`relative size-2.5 rounded-full transition-colors duration-500 ${online ? 'bg-emerald-400' : 'bg-red-500'}`} />
+        </span>
         <Link to="/settings" aria-label="Settings" className="text-white/20 transition hover:text-white/70">
           <HiOutlineCog6Tooth className="size-5" />
         </Link>

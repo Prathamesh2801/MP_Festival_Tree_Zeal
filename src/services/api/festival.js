@@ -11,8 +11,6 @@ export const fromServer = (url) => (import.meta.env.DEV && url ? url.replace(api
 
 export const sseUrl = (sseId) => `${API_BASE}/sse.php?sse_id=${encodeURIComponent(sseId)}`
 
-export const targetImg = (id) => `${API_BASE}/Target/${id}.png`
-
 export async function fetchInfo(url) {
   const res = await fetch(fromServer(url))
   if (!res.ok) throw new Error(`Info ${res.status}`)

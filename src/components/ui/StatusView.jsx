@@ -34,7 +34,7 @@ export default function StatusView({ status, imageUrl, viewUrl, error, note }) {
 
   if (status === 'completed') {
     return (
-      <GlassCard className="flex flex-col items-center gap-8 p-6 md:flex-row md:p-8">
+      <GlassCard className="flex flex-col items-center gap-6 p-5 sm:gap-8 md:flex-row md:p-8">
         {imageUrl && (
           <motion.img
             src={imageUrl}
@@ -42,13 +42,13 @@ export default function StatusView({ status, imageUrl, viewUrl, error, note }) {
             initial={{ opacity: 0, scale: 0.96 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.8, ease }}
-            className="max-h-[60vh] w-auto rounded-2xl object-contain shadow-2xl"
+            className="max-h-[50dvh] w-auto rounded-2xl object-contain shadow-2xl"
           />
         )}
         {viewUrl && (
           <div className="flex flex-col items-center gap-4 text-center">
             <div className="rounded-2xl bg-white p-4">
-              <QRCodeSVG value={viewUrl} size={200} />
+              <QRCodeSVG value={viewUrl} size={200} className="block size-[clamp(130px,22vmin,200px)]" />
             </div>
             <p className="font-display text-2xl">Scan to download</p>
             <p className="text-sm text-mist/70">Open with your phone camera</p>
