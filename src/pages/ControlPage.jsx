@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
@@ -7,21 +7,32 @@ import {
   HiOutlineCamera,
   HiOutlineCog6Tooth,
   HiOutlineLockClosed,
-  HiOutlineQrCode,
 } from 'react-icons/hi2'
+import Button from '../components/ui/Button'
 import GlassCard from '../components/ui/GlassCard'
+import QrScanner from '../components/ui/QrScanner'
 import StatusView from '../components/ui/StatusView'
+import { ease, fadeUp, tap } from '../constants/motion'
 import { useDevice } from '../hooks/useDevice'
-import { fetchInfo, generate, targetImg } from '../services/api/festival'
+import { fetchInfo, fromServer, generate, targetImg } from '../services/api/festival'
 
-const btn = 'inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 font-medium transition'
-const primary = `${btn} bg-gold text-ink hover:bg-gold-soft disabled:opacity-40`
-const ghost = `${btn} border border-white/15 hover:border-white/35`
+const REQUIRED = ['wall', 'm', 'f', 'info']
+
+// Wall QR = `<app url>#/control?wall=..&m=..&f=..&info=..` → returns its query string, or null if not ours.
+function parseWallCode(text) {
+  try {
+    const query = new URL(text).hash.split('?')[1] || ''
+    const q = new URLSearchParams(query)
+    return REQUIRED.every((k) => q.get(k)) ? q.toString() : null
+  } catch {
+    return null
+  }
+}
 
 function Shell({ children }) {
   return (
     <main className="relative flex min-h-full items-center justify-center p-4">
-      <Link to="/settings" aria-label="Settings" className="absolute top-4 right-4 text-white/20 hover:text-white/70">
+      <Link to="/settings" aria-label="Settings" className="absolute top-4 right-4 text-white/20 transition hover:text-white/70">
         <HiOutlineCog6Tooth className="size-5" />
       </Link>
       <div className="w-full max-w-2xl">{children}</div>
@@ -29,21 +40,58 @@ function Shell({ children }) {
   )
 }
 
-function Message({ icon: Icon, title, text }) {
+function BackButton({ onClick }) {
   return (
-    <GlassCard className="flex flex-col items-center gap-4 px-8 py-14 text-center">
-      <Icon className="size-12 text-gold" />
-      <h1 className="font-display text-3xl">{title}</h1>
-      <p className="max-w-sm text-mist/80">{text}</p>
-    </GlassCard>
+    <button onClick={onClick} className="mb-4 text-mist/70 transition hover:text-white" aria-label="Back">
+      <HiOutlineArrowLeft className="size-5" />
+    </button>
   )
 }
 
-const fade = {
-  initial: { opacity: 0, y: 16 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -16 },
-  transition: { duration: 0.35 },
+function Scan() {
+  const navigate = useNavigate()
+  const [invalid, setInvalid] = useState(false)
+  const timer = useRef(null)
+
+  useEffect(() => () => clearTimeout(timer.current), [])
+
+  const onResult = (text) => {
+    const query = parseWallCode(text)
+    if (query) {
+      navigator.vibrate?.(40)
+      navigate(`/control?${query}`)
+      return
+    }
+    setInvalid(true)
+    clearTimeout(timer.current)
+    timer.current = setTimeout(() => setInvalid(false), 2000)
+  }
+
+  return (
+    <motion.div {...fadeUp}>
+      <GlassCard className="p-6 sm:p-8">
+        <p className="text-xs uppercase tracking-[0.3em] text-gold">MP Festival Tree</p>
+        <h1 className="mt-2 font-display text-3xl">Scan a wall to begin</h1>
+        <p className="mt-2 text-mist/75">Point the camera at the QR code on any display.</p>
+        <div className="relative mx-auto mt-6 max-w-md">
+          <QrScanner onResult={onResult} />
+          <AnimatePresence>
+            {invalid && (
+              <motion.p
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 8 }}
+                transition={{ duration: 0.3, ease }}
+                className="glass absolute inset-x-6 bottom-6 rounded-xl px-4 py-2 text-center text-sm"
+              >
+                That isn't a festival wall code
+              </motion.p>
+            )}
+          </AnimatePresence>
+        </div>
+      </GlassCard>
+    </motion.div>
+  )
 }
 
 function Flow({ wall, male, female, infoUrl }) {
@@ -94,40 +142,52 @@ function Flow({ wall, male, female, infoUrl }) {
   ]
 
   return (
-    <AnimatePresence mode="wait">
+    // initial={false}: the wrapper in ControlPage already animates the first step in
+    <AnimatePresence mode="wait" initial={false}>
       {step === 'info' && (
-        <motion.div key="info" {...fade}>
+        <motion.div key="info" {...fadeUp}>
           <GlassCard className="p-8">
+            <BackButton onClick={() => navigate('/control')} />
             <p className="text-xs uppercase tracking-[0.3em] text-gold">Your destination</p>
-            <h1 className="mt-3 font-display text-4xl leading-tight">{info?.title || '…'}</h1>
-            <p className="mt-4 leading-relaxed whitespace-pre-line text-mist/85">{info?.description}</p>
-            <button onClick={() => setStep('gender')} disabled={!info} className={`${primary} mt-8 w-full`}>
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div key={info ? 'loaded' : 'loading'} {...fadeUp}>
+                <h1 className="mt-3 font-display text-4xl leading-tight">{info?.title || 'Loading…'}</h1>
+                <p className="mt-4 leading-relaxed whitespace-pre-line text-mist/85">{info?.description}</p>
+              </motion.div>
+            </AnimatePresence>
+            <Button onClick={() => setStep('gender')} disabled={!info} className="mt-8 w-full">
               Continue
-            </button>
+            </Button>
           </GlassCard>
         </motion.div>
       )}
 
       {step === 'gender' && (
-        <motion.div key="gender" {...fade}>
+        <motion.div key="gender" {...fadeUp}>
           <GlassCard className="p-8">
-            <button onClick={() => setStep('info')} className="mb-4 text-mist/70 hover:text-white" aria-label="Back">
-              <HiOutlineArrowLeft className="size-5" />
-            </button>
+            <BackButton onClick={() => setStep('info')} />
             <h1 className="font-display text-3xl">Choose your portrait</h1>
             <div className="mt-6 grid grid-cols-2 gap-4">
-              {genders.map(({ label, id }) => (
-                <button
+              {genders.map(({ label, id }, i) => (
+                <motion.button
                   key={id}
+                  {...tap}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.45, ease, delay: 0.08 * i }}
                   onClick={() => {
                     setTargetId(id)
                     setStep('selfie')
                   }}
-                  className="group overflow-hidden rounded-2xl border border-white/10 text-left transition hover:border-gold/70"
+                  className="group overflow-hidden rounded-2xl border border-white/10 text-left transition-colors duration-300 hover:border-gold/70"
                 >
-                  <img src={targetImg(id)} alt="" className="aspect-[3/4] w-full object-cover transition group-hover:scale-[1.02]" />
+                  <img
+                    src={targetImg(id)}
+                    alt=""
+                    className="aspect-[3/4] w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                  />
                   <span className="block p-4 font-medium">{label}</span>
-                </button>
+                </motion.button>
               ))}
             </div>
           </GlassCard>
@@ -135,23 +195,32 @@ function Flow({ wall, male, female, infoUrl }) {
       )}
 
       {step === 'selfie' && (
-        <motion.div key="selfie" {...fade}>
+        <motion.div key="selfie" {...fadeUp}>
           <GlassCard className="p-8">
-            <button onClick={() => setStep('gender')} className="mb-4 text-mist/70 hover:text-white" aria-label="Back">
-              <HiOutlineArrowLeft className="size-5" />
-            </button>
+            <BackButton onClick={() => setStep('gender')} />
             <h1 className="font-display text-3xl">Take a selfie</h1>
             <p className="mt-2 text-mist/75">Face the camera, good light, no sunglasses.</p>
 
             <label className="mt-6 flex aspect-[3/4] max-h-[55vh] w-full cursor-pointer items-center justify-center overflow-hidden rounded-2xl border border-dashed border-white/20 bg-white/5">
-              {preview ? (
-                <img src={preview} alt="Selfie preview" className="size-full object-cover" />
-              ) : (
-                <span className="flex flex-col items-center gap-3 text-mist/70">
-                  <HiOutlineCamera className="size-10 text-gold" />
-                  Tap to open camera
-                </span>
-              )}
+              <AnimatePresence mode="wait">
+                {preview ? (
+                  <motion.img
+                    key={preview}
+                    src={preview}
+                    alt="Selfie preview"
+                    initial={{ opacity: 0, scale: 1.03 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.5, ease }}
+                    className="size-full object-cover"
+                  />
+                ) : (
+                  <motion.span key="empty" {...fadeUp} className="flex flex-col items-center gap-3 text-mist/70">
+                    <HiOutlineCamera className="size-10 text-gold" />
+                    Tap to open camera
+                  </motion.span>
+                )}
+              </AnimatePresence>
               <input
                 type="file"
                 accept="image/*"
@@ -161,34 +230,34 @@ function Flow({ wall, male, female, infoUrl }) {
               />
             </label>
 
-            <button onClick={submit} disabled={!file} className={`${primary} mt-6 w-full`}>
+            <Button onClick={submit} disabled={!file} className="mt-6 w-full">
               Create my portrait
-            </button>
+            </Button>
           </GlassCard>
         </motion.div>
       )}
 
       {step === 'processing' && (
-        <motion.div key="processing" {...fade}>
+        <motion.div key="processing" {...fadeUp}>
           <StatusView status="generating" note={`Please wait · ${elapsed}s`} />
         </motion.div>
       )}
 
       {step === 'result' && (
-        <motion.div key="result" {...fade} className="space-y-4">
-          <StatusView status="completed" imageUrl={result.final_image_url} viewUrl={result.view_url} />
-          <button onClick={() => navigate('/control', { replace: true })} className={`${ghost} w-full`}>
+        <motion.div key="result" {...fadeUp} className="space-y-4">
+          <StatusView status="completed" imageUrl={fromServer(result.final_image_url)} viewUrl={result.view_url} />
+          <Button variant="ghost" onClick={() => navigate('/control', { replace: true })} className="w-full">
             Next visitor
-          </button>
+          </Button>
         </motion.div>
       )}
 
       {step === 'error' && (
-        <motion.div key="error" {...fade} className="space-y-4">
+        <motion.div key="error" {...fadeUp} className="space-y-4">
           <StatusView status="failed" error={error} />
-          <button onClick={() => setStep('selfie')} className={`${primary} w-full`}>
+          <Button onClick={() => setStep('selfie')} className="w-full">
             <HiOutlineArrowPath className="size-5" /> Try again
-          </button>
+          </Button>
         </motion.div>
       )}
     </AnimatePresence>
@@ -198,31 +267,35 @@ function Flow({ wall, male, female, infoUrl }) {
 export default function ControlPage() {
   const [device] = useDevice()
   const [params] = useSearchParams()
-  const wall = params.get('wall')
-  const male = params.get('m')
-  const female = params.get('f')
-  const infoUrl = params.get('info')
+  const query = params.toString()
+  const scanned = REQUIRED.every((k) => params.get(k))
 
   if (device.role !== 'controller') {
     return (
       <Shell>
-        <Message icon={HiOutlineLockClosed} title="Not authorized" text="Please use the festival tablet to scan the wall." />
+        <motion.div {...fadeUp}>
+          <GlassCard className="flex flex-col items-center gap-4 px-8 py-14 text-center">
+            <HiOutlineLockClosed className="size-12 text-gold" />
+            <h1 className="font-display text-3xl">Not authorized</h1>
+            <p className="max-w-sm text-mist/80">Please use the festival tablet to scan the wall.</p>
+          </GlassCard>
+        </motion.div>
       </Shell>
     )
   }
 
-  if (!wall || !male || !female || !infoUrl) {
-    return (
-      <Shell>
-        <Message icon={HiOutlineQrCode} title="Scan a wall to begin" text="Open the camera and point it at the QR code on any display." />
-      </Shell>
-    )
-  }
-
-  // key: a new scan restarts the flow from the top
+  // Keyed on the query string: a new scan cross-fades into a fresh flow; "Next visitor" fades back to the scanner.
   return (
     <Shell>
-      <Flow key={params.toString()} wall={wall} male={male} female={female} infoUrl={infoUrl} />
+      <AnimatePresence mode="wait">
+        {scanned ? (
+          <motion.div key={query} {...fadeUp}>
+            <Flow wall={params.get('wall')} male={params.get('m')} female={params.get('f')} infoUrl={params.get('info')} />
+          </motion.div>
+        ) : (
+          <Scan key="scan" />
+        )}
+      </AnimatePresence>
     </Shell>
   )
 }

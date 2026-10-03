@@ -1,13 +1,20 @@
 import config from '../../config/config'
 
-const API_BASE = config.apiBase.replace(/\/$/, '')
+const api = new URL(config.apiBase)
+
+// Dev: same-origin path through the Vite proxy (see vite.config.js). Build: the full apiBase.
+const API_BASE = (import.meta.env.DEV ? api.pathname : config.apiBase).replace(/\/$/, '')
+
+// The server builds absolute URLs (Video, Info, final_image_url) from its own host.
+// In dev those are http on an https page, so route them through the proxy too.
+export const fromServer = (url) => (import.meta.env.DEV && url ? url.replace(api.origin, '') : url)
 
 export const sseUrl = (sseId) => `${API_BASE}/sse.php?sse_id=${encodeURIComponent(sseId)}`
 
 export const targetImg = (id) => `${API_BASE}/Target/${id}.png`
 
 export async function fetchInfo(url) {
-  const res = await fetch(url)
+  const res = await fetch(fromServer(url))
   if (!res.ok) throw new Error(`Info ${res.status}`)
   return res.json()
 }

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { HiOutlineDevicePhoneMobile, HiOutlineTv } from 'react-icons/hi2'
+import Button from '../components/ui/Button'
 import GlassCard from '../components/ui/GlassCard'
 import { useDevice } from '../hooks/useDevice'
 import config from '../config/config'
@@ -69,7 +70,9 @@ export default function SettingsPage() {
             </label>
           )}
 
-          <button className="w-full rounded-xl bg-gold py-3 font-medium text-ink transition hover:bg-gold-soft">Save</button>
+          <Button type="submit" className="w-full">
+            Save
+          </Button>
         </form>
       </GlassCard>
     </main>

@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import { QRCodeSVG } from 'qrcode.react'
 import { HiOutlineExclamationTriangle } from 'react-icons/hi2'
+import { ease } from '../../constants/motion'
 import GlassCard from './GlassCard'
 
 // Shared by the wall and the handheld: generating / completed / failed.
@@ -40,7 +41,7 @@ export default function StatusView({ status, imageUrl, viewUrl, error, note }) {
             alt="Your portrait"
             initial={{ opacity: 0, scale: 0.96 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.6 }}
+            transition={{ duration: 0.8, ease }}
             className="max-h-[60vh] w-auto rounded-2xl object-contain shadow-2xl"
           />
         )}
