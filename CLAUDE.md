@@ -6,7 +6,8 @@ The PHP backend is built by a colleague (separate repo). Its docs: `http://192.1
 
 ## Commands
 - `npm run dev` — dev server, `host: true` so tablets on the LAN can open it. Open the **Network** URL on devices, not `localhost` (the wall builds its QR link from its own URL).
-- `npm run build` — static build into `dist/` (`base: './'`, hash router → works from any folder).
+- `npm run build` — static build into `dist/` (`base: './'`, hash router → works from any folder), then zips it to `dist.zip` in the project root (via `npm run zip`, `bestzip`). Zip holds the contents of `dist/` at its root (`index.html`, `assets/`) — extract straight into the server folder. `dist.zip` is gitignored.
+- `npm run zip` — re-zip an existing `dist/` without rebuilding.
 - `npm run preview` — serve the build.
 - No lint or tests configured.
 
@@ -66,7 +67,7 @@ Base: `config.apiBase` (currently `http://192.168.1.88/ministack/MP_Festival_Tre
 ## Deployment: the event is ONLINE
 - `192.168.1.88` is only the dev server. At the event, set `config.apiBase` to the **https** URL of the hosted API before `npm run build`.
 - HTTPS on both app and API (an https page can't call an http API — mixed content). Video/Info URLs from SSE follow the server host automatically.
-- Upload `dist/` anywhere (same domain as the API is simplest). Wall QR links follow the app's real URL.
+- Upload/extract `dist.zip` anywhere (same domain as the API is simplest). Wall QR links follow the app's real URL.
 - PHP holds one worker per open SSE stream → 10+ walls means 10+ long-lived workers; confirm the host allows it and doesn't buffer `text/event-stream`.
 - HTTPS would allow an in-app QR scanner later (getUserMedia); current choice is native camera.
 

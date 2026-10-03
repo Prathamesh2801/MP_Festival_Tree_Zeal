@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && npm run zip",
+    "zip": "cd dist && bestzip ../dist.zip *",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -19,6 +20,7 @@
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
     "@vitejs/plugin-react": "^6.1.1",
+    "bestzip": "^4.0.3",
     "tailwindcss": "^4.3.3",
     "vite": "^8.3.2"
   }
