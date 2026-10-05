@@ -5,7 +5,7 @@ import { HiOutlineVideoCameraSlash } from 'react-icons/hi2'
 import { ease } from '../../constants/motion'
 import Button from './Button'
 
-const corner = 'absolute size-10 border-gold'
+const corner = 'absolute size-10 border-plum'
 
 // Live camera QR scanner (rear camera). Calls onResult(text) for every decoded code;
 // the caller decides whether it's valid. Needs https or localhost (camera permission).
@@ -41,8 +41,8 @@ export default function QrScanner({ onResult }) {
 
   if (error) {
     return (
-      <div className="flex aspect-square w-full flex-col items-center justify-center gap-4 rounded-3xl border border-white/10 bg-white/5 p-8 text-center">
-        <HiOutlineVideoCameraSlash className="size-10 text-gold" />
+      <div className="flex aspect-square w-full flex-col items-center justify-center gap-4 rounded-3xl border border-ink/10 bg-white/40 p-8 text-center">
+        <HiOutlineVideoCameraSlash className="size-10 text-plum" />
         <p className="max-w-xs text-mist/80">{error}</p>
         <Button
           variant="ghost"
@@ -78,7 +78,7 @@ export default function QrScanner({ onResult }) {
         <span className={`${corner} right-0 bottom-0 rounded-br-2xl border-r-2 border-b-2`} />
         {ready && (
           <motion.span
-            className="absolute inset-x-2 h-px bg-gradient-to-r from-transparent via-gold to-transparent shadow-[0_0_12px_2px] shadow-gold/50"
+            className="absolute inset-x-2 h-px bg-gradient-to-r from-transparent via-plum to-transparent shadow-[0_0_12px_2px] shadow-plum/50"
             initial={{ top: '5%' }}
             animate={{ top: ['5%', '95%', '5%'] }}
             transition={{ duration: 3, ease: 'easeInOut', repeat: Infinity }}

@@ -65,7 +65,7 @@ export default function WallPage() {
           <motion.div
             key={`status-${status}`}
             {...fade}
-            className="absolute inset-0 flex items-center justify-center bg-ink/60 p-8 backdrop-blur-md"
+            className="absolute inset-0 flex items-center justify-center bg-sand/50 p-8 backdrop-blur-md"
           >
             <motion.div {...fadeUp}>
               <StatusView
@@ -100,8 +100,8 @@ export default function WallPage() {
           title={online ? 'Connected' : 'Reconnecting'}
           className="relative flex size-2.5"
         >
-          {online && <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400/60" />}
-          <span className={`relative size-2.5 rounded-full transition-colors duration-500 ${online ? 'bg-emerald-400' : 'bg-red-500'}`} />
+          {online && <span className="absolute inset-0 animate-ping rounded-full bg-leaf/60" />}
+          <span className={`relative size-2.5 rounded-full transition-colors duration-500 ${online ? 'bg-leaf' : 'bg-red-500'}`} />
         </span>
         <Link to="/settings" aria-label="Settings" className="text-white/20 transition hover:text-white/70">
           <HiOutlineCog6Tooth className="size-5" />

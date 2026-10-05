@@ -10,7 +10,7 @@ export default function StatusView({ status, imageUrl, viewUrl, error, note }) {
     return (
       <GlassCard className="flex flex-col items-center gap-6 px-10 py-12 text-center">
         <motion.span
-          className="size-16 rounded-full border-2 border-gold/20 border-t-gold"
+          className="size-16 rounded-full border-2 border-plum/20 border-t-plum"
           animate={{ rotate: 360 }}
           transition={{ repeat: Infinity, duration: 1.2, ease: 'linear' }}
         />
@@ -25,7 +25,7 @@ export default function StatusView({ status, imageUrl, viewUrl, error, note }) {
   if (status === 'failed') {
     return (
       <GlassCard className="flex flex-col items-center gap-4 px-10 py-12 text-center">
-        <HiOutlineExclamationTriangle className="size-12 text-gold" />
+        <HiOutlineExclamationTriangle className="size-12 text-plum" />
         <h2 className="font-display text-3xl">Something went wrong</h2>
         <p className="max-w-md text-mist/80">{error || 'Please try again.'}</p>
       </GlassCard>

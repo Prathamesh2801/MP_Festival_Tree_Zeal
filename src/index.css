@@ -1,12 +1,17 @@
 @import "tailwindcss";
 
+/* Brand colours from the MP Travel Mart logo (raw-docs/PLACEMENT OF LOGO FINAL.cdr) */
 @theme {
   --font-sans: "Inter", system-ui, sans-serif;
   --font-display: "Playfair Display", Georgia, serif;
-  --color-ink: #0b0f1a;
-  --color-gold: #d9b779;
-  --color-gold-soft: #f1dfb8;
-  --color-mist: #c9d2e3;
+  --color-ink: #2b1a24;
+  --color-mist: #6a5560;
+  --color-sand: #f6efe2;
+  --color-plum: #ae4a84;
+  --color-plum-soft: #c0619a;
+  --color-saffron: #ef7f1a;
+  --color-leaf: #009846;
+  --color-sky: #00a0e3;
 }
 
 html,
@@ -17,22 +22,26 @@ body,
 
 body {
   margin: 0;
-  color: #f4f6fb;
+  color: var(--color-ink);
+  /* soft brand-colour glows on beige give the glass something to blur */
   background:
-    radial-gradient(60rem 40rem at 10% -10%, rgb(217 183 121 / 0.18), transparent 60%),
-    radial-gradient(50rem 40rem at 110% 110%, rgb(64 120 140 / 0.25), transparent 60%),
-    var(--color-ink);
+    radial-gradient(42rem 32rem at 0% 0%, rgb(174 74 132 / 0.22), transparent 60%),
+    radial-gradient(36rem 28rem at 100% 15%, rgb(239 127 26 / 0.2), transparent 60%),
+    radial-gradient(40rem 30rem at 100% 100%, rgb(0 160 227 / 0.16), transparent 60%),
+    radial-gradient(34rem 26rem at 0% 100%, rgb(0 152 70 / 0.14), transparent 60%),
+    var(--color-sand);
+  background-attachment: fixed;
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
 }
 
 @utility glass {
-  background: rgb(255 255 255 / 0.07);
-  border: 1px solid rgb(255 255 255 / 0.14);
-  backdrop-filter: blur(24px) saturate(140%);
-  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  background: rgb(255 255 255 / 0.5);
+  border: 1px solid rgb(255 255 255 / 0.75);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
   box-shadow:
-    0 20px 60px -20px rgb(0 0 0 / 0.6),
-    inset 0 1px 0 rgb(255 255 255 / 0.08);
+    0 24px 60px -24px rgb(90 40 50 / 0.28),
+    inset 0 1px 0 rgb(255 255 255 / 0.8);
 }

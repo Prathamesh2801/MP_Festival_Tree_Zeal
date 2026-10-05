@@ -21,7 +21,7 @@ React + Vite, JSX only. TailwindCSS v4 (`@tailwindcss/vite`, theme in `src/index
 - Plain `fetch`, no axios.
 - Motion: only the presets in `src/constants/motion.js` (`ease`, `fadeUp`, `fade`, `stagger` + `rise` for staggered children, `tap`) and `Button`. `MotionConfig reducedMotion="user"` in `main.jsx`. Nested `AnimatePresence` inside an animating wrapper uses `initial={false}`.
 - **Never leave a CSS `filter` on an ancestor of a glass panel** — it disables `backdrop-filter`. `fadeUp` ends with `transitionEnd: { filter: 'none' }` for this reason.
-- Design: dark glassmorphism. `glass` utility + tokens (`ink`, `gold`, `gold-soft`, `mist`, `font-display` Playfair, `font-sans` Inter). Reuse `GlassCard`.
+- Design: light beige glassmorphism in MP Travel Mart brand colours (logo source: `raw-docs/PLACEMENT OF LOGO FINAL.cdr`). `glass` utility + tokens: `sand` (bg), `ink` (text), `mist` (muted text), `plum` (primary accent) / `plum-soft`, `leaf`, `saffron`, `sky`; `font-display` Playfair, `font-sans` Inter. Body has faint brand-colour glows so the glass has something to blur. Reuse `GlassCard`. Handheld progress steps use plum → leaf → saffron (wordmark order). Tagline "The heart of Incredible India" on scanner + result. `public/favicon.svg` is a placeholder tile mark until the designer sends SVG exports.
 - Handheld layout must fit the visible screen: `min-h-dvh` + safe-area padding; size tall media by height (`max-w-[min(100%,48dvh)]`, `max-w-[calc(44dvh*3/4)]`, `max-h-[50dvh]`), not `vh`.
 
 ## Structure
