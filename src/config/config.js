@@ -4,6 +4,9 @@ const config = {
   // Online event: change to the https URL of the hosted API.
   apiBase: 'http://192.168.1.88/ministack/MP_Festival_Tree',
 
+  // Endpoint (relative to apiBase) that WhatsApps the final image to the visitor. Not built on the server yet.
+  whatsappEndpoint: 'whatsapp.php',
+
   // Wall stream id = wallIdPrefix + channel number.
   wallIdPrefix: 'wall-',
 

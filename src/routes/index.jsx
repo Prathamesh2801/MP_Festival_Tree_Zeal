@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Navigate, createHashRouter, useLocation, useOutlet } from 'react-router'
 import { AnimatePresence, motion } from 'framer-motion'
 import { fade } from '../constants/motion'
@@ -13,8 +14,27 @@ function Home() {
   return <Navigate to="/settings" replace />
 }
 
+// Double tap anywhere (except on controls) toggles fullscreen. Two `click`s within 300 ms rather than
+// `dblclick`, which Android Chrome doesn't fire reliably on touch; `click` also counts as user activation.
+function useDoubleTapFullscreen() {
+  useEffect(() => {
+    let last = 0
+    const onClick = (e) => {
+      if (e.target.closest('button, a, input, label, select, textarea')) return
+      const now = e.timeStamp
+      if (now - last > 300) return void (last = now)
+      last = 0
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {})
+      else document.documentElement.requestFullscreen({ navigationUI: 'hide' }).catch(() => {})
+    }
+    document.addEventListener('click', onClick)
+    return () => document.removeEventListener('click', onClick)
+  }, [])
+}
+
 // Cross-fades between pages. Keyed on pathname only, so query changes inside /control animate within the page.
 function RootLayout() {
+  useDoubleTapFullscreen()
   const { pathname } = useLocation()
   const outlet = useOutlet()
   return (

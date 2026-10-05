@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, Navigate } from 'react-router'
 import { AnimatePresence, motion } from 'framer-motion'
-import { QRCodeSVG } from 'qrcode.react'
 import { HiOutlineCog6Tooth } from 'react-icons/hi2'
+import BrandQr from '../components/ui/BrandQr'
 import StatusView from '../components/ui/StatusView'
 import { ease, fade, fadeUp } from '../constants/motion'
 import { useDevice } from '../hooks/useDevice'
@@ -78,16 +78,23 @@ export default function WallPage() {
           </motion.div>
         ) : (
           slide && (
-            // Only the QR over the video. Keyed on the set so each new set's QR swaps in.
+            // Brand bar bottom-centre; a scrim rising from the bottom edge blends it into the footage. BrandQr swaps the QR per set.
             <motion.div
-              key={`set-${slide.set}`}
-              initial={{ opacity: 0, y: 24, scale: 0.94 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 12, scale: 0.97 }}
-              transition={{ duration: 0.8, ease }}
-              className="absolute bottom-[4vmin] left-[4vmin] origin-bottom-left rounded-[2.5vmin] bg-white p-[1.6vmin] shadow-[0_20px_60px_-15px_rgb(0_0_0/0.7)]"
+              key="idle"
+              {...fade}
+              className="pointer-events-none absolute inset-0 flex items-end justify-center pb-[4vmin] bg-[linear-gradient(to_top,rgb(43_26_36/0.65),rgb(43_26_36/0.25)_30%,transparent_55%)]"
             >
-              <QRCodeSVG value={controlLink(sseId, slide)} size={256} className="block size-[clamp(120px,22vmin,260px)]" />
+              <motion.div
+                initial={{ opacity: 0, y: 24, scale: 0.96 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ duration: 0.9, ease, delay: 0.2 }}
+                className="origin-bottom"
+              >
+                <BrandQr
+                  value={controlLink(sseId, slide)}
+                  className="shadow-[0_24px_70px_-20px_rgb(0_0_0/0.7)] ring-1 ring-white/60"
+                />
+              </motion.div>
             </motion.div>
           )
         )}

@@ -17,13 +17,18 @@ export async function fetchInfo(url) {
   return res.json()
 }
 
-export async function generate({ sseId, id, file }) {
+async function post(endpoint, fields) {
   const fd = new FormData()
-  fd.append('sse_id', sseId)
-  fd.append('id', id)
-  fd.append('source', file, file.name || 'selfie.jpg')
-  const res = await fetch(`${API_BASE}/api.php`, { method: 'POST', body: fd })
+  for (const [k, v] of Object.entries(fields)) fd.append(k, v)
+  const res = await fetch(`${API_BASE}/${endpoint}`, { method: 'POST', body: fd })
   const json = await res.json().catch(() => ({ success: false, error: `Server error ${res.status}` }))
   if (!json.success) throw new Error(json.error || `Server error ${res.status}`)
   return json
 }
+
+export const generate = ({ sseId, id, file }) =>
+  post('api.php', { sse_id: sseId, id, source: file })
+
+// ponytail: backend endpoint not built yet — field names are our proposal to the colleague, adjust when it lands.
+export const sendWhatsApp = ({ sseId, phone, imageUrl, viewUrl }) =>
+  post(config.whatsappEndpoint, { sse_id: sseId, phone, final_image_url: imageUrl, view_url: viewUrl })

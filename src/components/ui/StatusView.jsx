@@ -1,11 +1,12 @@
 import { motion } from 'framer-motion'
-import { QRCodeSVG } from 'qrcode.react'
 import { HiOutlineExclamationTriangle } from 'react-icons/hi2'
 import { ease } from '../../constants/motion'
+import BrandQr from './BrandQr'
 import GlassCard from './GlassCard'
 
 // Shared by the wall and the handheld: generating / completed / failed.
-export default function StatusView({ status, imageUrl, viewUrl, error, note }) {
+// Completed: the wall passes `viewUrl` (download QR); the handheld passes `children` (WhatsApp form) instead.
+export default function StatusView({ status, imageUrl, viewUrl, error, note, children }) {
   if (status === 'generating') {
     return (
       <GlassCard className="flex flex-col items-center gap-6 px-10 py-12 text-center">
@@ -34,7 +35,7 @@ export default function StatusView({ status, imageUrl, viewUrl, error, note }) {
 
   if (status === 'completed') {
     return (
-      <GlassCard className="flex flex-col items-center gap-6 p-5 sm:gap-8 md:flex-row md:p-8">
+      <GlassCard className={`flex flex-col items-center p-5 md:p-8 ${children ? 'gap-4' : 'gap-6'}`}>
         {imageUrl && (
           <motion.img
             src={imageUrl}
@@ -42,18 +43,17 @@ export default function StatusView({ status, imageUrl, viewUrl, error, note }) {
             initial={{ opacity: 0, scale: 0.96 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.8, ease }}
-            className="max-h-[50dvh] w-auto rounded-2xl object-contain shadow-2xl"
+            // handheld (children = share options) gets a shorter image so header + image + options fit one screen
+            className={`${children ? 'max-h-[24dvh]' : 'max-h-[45dvh]'} w-auto rounded-2xl object-contain shadow-2xl`}
           />
         )}
         {viewUrl && (
-          <div className="flex flex-col items-center gap-4 text-center">
-            <div className="rounded-2xl bg-white p-4">
-              <QRCodeSVG value={viewUrl} size={200} className="block size-[clamp(130px,22vmin,200px)]" />
-            </div>
+          <div className="flex flex-col items-center gap-3 text-center">
+            <BrandQr value={viewUrl} className="shadow-[0_18px_50px_-24px_rgb(43_26_36/0.45)]" />
             <p className="font-display text-2xl">Scan to download</p>
-            <p className="text-sm text-mist/70">Open with your phone camera</p>
           </div>
         )}
+        {children}
       </GlassCard>
     )
   }
