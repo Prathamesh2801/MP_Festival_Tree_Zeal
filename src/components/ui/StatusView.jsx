@@ -3,8 +3,9 @@ import { HiOutlineExclamationTriangle } from 'react-icons/hi2'
 import { ease } from '../../constants/motion'
 import GlassCard from './GlassCard'
 
-// Shared by the wall and the handheld: generating / completed / failed.
-// Completed (handheld only; the wall has its own full-screen result): image + `children` (share options).
+// Shared by the wall and the visitor phone: generating / completed / failed.
+// Completed (phone only; the wall has its own full-screen result): image + `children` (Download button).
+// The image keeps the iOS long-press "Save to Photos" menu, a handy second way to save it.
 export default function StatusView({ status, imageUrl, error, note, children }) {
   if (status === 'generating') {
     return (
@@ -42,8 +43,8 @@ export default function StatusView({ status, imageUrl, error, note, children }) 
             initial={{ opacity: 0, scale: 0.96 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.8, ease }}
-            // handheld (children = share options) gets a shorter image so header + image + options fit one screen
-            className={`${children ? 'max-h-[24dvh]' : 'max-h-[45dvh]'} w-auto rounded-2xl object-contain shadow-2xl`}
+            // phone: header (20dvh) + image + two buttons fit one screen (≥ 600px tall)
+            className={`${children ? 'max-h-[34dvh]' : 'max-h-[45dvh]'} w-auto rounded-2xl object-contain shadow-2xl`}
           />
         )}
         {children}

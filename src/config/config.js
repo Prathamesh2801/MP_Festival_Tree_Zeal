@@ -13,8 +13,8 @@ const config = {
   // Add new ones when sets are added on the server; a video missing here is still cached the first time it arrives.
   prefetchVideos: ['Videos/301.mp4', 'Videos/302.mp4', 'Videos/303.mp4', 'Videos/304.mp4'],
 
-  // localStorage key for this device's role and channel.
-  deviceStorageKey: 'mpft.device',
+  // "Know more" button on the visitor's phone.
+  knowMoreUrl: 'https://www.mptourism.com',
 }
 
 export default config

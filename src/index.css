@@ -20,25 +20,39 @@ body,
   height: 100%;
 }
 
-/* no double-tap zoom: double tap toggles fullscreen instead (routes/index.jsx) */
+/* no double-tap zoom: double tap toggles fullscreen instead (routes/index.jsx).
+   No pull-to-refresh / bounce: a reload mid-flow would lose the visitor's result.
+   No iOS landscape text inflation. */
 html {
   touch-action: manipulation;
+  overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
   margin: 0;
   color: var(--color-ink);
   /* soft brand-colour glows on beige give the glass something to blur */
+  background: var(--color-sand);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Glows on a fixed layer, not `background-attachment: fixed` (ignored on iOS Safari, janky on Android). */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
   background:
     radial-gradient(42rem 32rem at 0% 0%, rgb(174 74 132 / 0.22), transparent 60%),
     radial-gradient(36rem 28rem at 100% 15%, rgb(239 127 26 / 0.2), transparent 60%),
     radial-gradient(40rem 30rem at 100% 100%, rgb(0 160 227 / 0.16), transparent 60%),
     radial-gradient(34rem 26rem at 0% 100%, rgb(0 152 70 / 0.14), transparent 60%),
     var(--color-sand);
-  background-attachment: fixed;
-  font-family: var(--font-sans);
-  -webkit-font-smoothing: antialiased;
-  -webkit-tap-highlight-color: transparent;
 }
 
 @utility glass {

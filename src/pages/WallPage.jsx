@@ -1,18 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
-import { Navigate } from 'react-router'
+import { Navigate, useParams } from 'react-router'
 import { AnimatePresence, motion } from 'framer-motion'
 import { QRCodeSVG } from 'qrcode.react'
-import PartnerGrid from '../components/ui/PartnerGrid'
 import StatusView from '../components/ui/StatusView'
 import { ease, fade, fadeUp } from '../constants/motion'
-import { useDevice } from '../hooks/useDevice'
 import { useFestivalStream } from '../hooks/useFestivalStream'
 import { fromServer } from '../services/api/festival'
 import { cachedVideo, prefetchVideos } from '../services/videoCache'
 import config from '../config/config'
-import logo from '../assets/logo.png'
 
-// Link the controller scans. Built from the current URL, so it follows the online host.
+// Link the visitor scans with their phone camera. Built from the current URL, so it follows the online host.
 function controlLink(sseId, set) {
   const q = new URLSearchParams({ wall: sseId, m: set.Male, f: set.Female })
   return `${window.location.origin}${window.location.pathname}#/control?${q}`
@@ -50,21 +47,15 @@ function BackgroundVideo({ src, onEnded }) {
   )
 }
 
-// Full-cover portrait panel shared by the idle and result screens: content (the QR) gets the space first, the logo grows into what's left above it, partners along the bottom.
-function WallPanel({ children, compact = false }) {
+// Full-cover portrait panel shared by the idle and result screens. No brand logos on the wall (removed at the user's request).
+function WallPanel({ children }) {
   // One glass layer over the whole screen (no inset card), so the QR can use nearly the full width.
   return (
     <motion.div
       {...fade}
       className="absolute inset-0 flex flex-col items-center justify-evenly gap-[2vh] bg-white/50 px-[2.5vmin] py-[2.5vh] backdrop-blur-2xl backdrop-saturate-150"
     >
-      <img
-        src={logo}
-        alt="Madhya Pradesh Travel Mart"
-        className={`${compact ? 'max-h-[10vh]' : 'max-h-[20vh] flex-1'} w-[75%] min-h-0 object-contain`}
-      />
       {children}
-      <PartnerGrid row className={`${compact ? 'h-[min(6vh,14vw)]' : 'h-[min(8vh,16vw)]'} w-[90%]`} />
     </motion.div>
   )
 }
@@ -85,7 +76,7 @@ function QrTile({ value, className = '' }) {
 function WallResult({ imageUrl, viewUrl }) {
   const [imageOk, setImageOk] = useState(true)
   return (
-    <WallPanel compact>
+    <WallPanel>
       {imageOk && (
         <img
           src={imageUrl}
@@ -103,8 +94,8 @@ function WallResult({ imageUrl, viewUrl }) {
 }
 
 export default function WallPage() {
-  const [device] = useDevice()
-  const sseId = device.role === 'wall' && device.channel ? `${config.wallIdPrefix}${device.channel}` : null
+  const { channel } = useParams()
+  const sseId = /^\d+$/.test(channel) ? `${config.wallIdPrefix}${channel}` : null
   const { record, waitingSet: slide } = useFestivalStream(sseId)
   const [dismissedVersion, setDismissedVersion] = useState(null)
   const [endedVideo, setEndedVideo] = useState(null) // QR shows once the current set's video has played through
@@ -129,7 +120,7 @@ export default function WallPage() {
     return () => clearTimeout(t)
   }, [record?.status, record?.version])
 
-  if (!sseId) return <Navigate to="/settings" replace />
+  if (!sseId) return <Navigate to="/" replace />
 
   const status = record?.status
   const overlay =

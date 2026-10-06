@@ -1,54 +1,46 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router'
+import { useSearchParams } from 'react-router'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
+  HiOutlineArrowDownTray,
   HiOutlineArrowLeft,
   HiOutlineArrowPath,
+  HiOutlineArrowRight,
+  HiOutlineArrowUpRight,
   HiOutlineCamera,
-  HiOutlineCog6Tooth,
-  HiOutlineLockClosed,
+  HiOutlineCheck,
+  HiOutlineGlobeAlt,
+  HiOutlineQrCode,
 } from 'react-icons/hi2'
-import { QRCodeSVG } from 'qrcode.react'
 import { TbGenderFemale, TbGenderMale } from 'react-icons/tb'
 import Button from '../components/ui/Button'
 import GlassCard from '../components/ui/GlassCard'
-import PartnerGrid from '../components/ui/PartnerGrid'
-import QrScanner from '../components/ui/QrScanner'
 import StatusView from '../components/ui/StatusView'
-import { ease, fadeUp, rise, stagger } from '../constants/motion'
-import { useDevice } from '../hooks/useDevice'
-import { fromServer, generate } from '../services/api/festival'
-import logo from '../assets/logo.png'
+import { ease, fadeUp, rise, stagger, tap } from '../constants/motion'
+import { downloadUrl, fromServer, generate, markDownloaded } from '../services/api/festival'
+import config from '../config/config'
+import logo from '../assets/header-logo.png'
 
 const REQUIRED = ['wall', 'm', 'f']
 const STEPS = ['gender', 'selfie']
+const DONE_MS = 4000 // success screen after a download, then back to the start
 // Logo wordmark colours: MADHYA (plum) · PRADESH (leaf)
 const STEP_COLORS = ['bg-plum', 'bg-leaf']
-
-// Wall QR = `<app url>#/control?wall=..&m=..&f=..` → returns its query string, or null if not ours.
-function parseWallCode(text) {
-  try {
-    const query = new URL(text).hash.split('?')[1] || ''
-    const q = new URLSearchParams(query)
-    return REQUIRED.every((k) => q.get(k)) ? q.toString() : null
-  } catch {
-    return null
-  }
-}
 
 function Shell({ children }) {
   return (
     // dvh = visible height (excludes browser bars); safe-area padding keeps clear of notches and the gesture bar
-    <main className="relative mx-auto flex min-h-dvh w-full max-w-xl flex-col px-[max(1.25rem,env(safe-area-inset-left))] pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1.25rem,env(safe-area-inset-bottom))]">
-      {/* partners 2×2 · main logo, one height (--h) */}
-      <header style={{ '--h': 'clamp(4rem, 9dvh, 7rem)' }} className="flex items-center justify-center gap-4 pt-1">
-        <PartnerGrid className="size-(--h)" />
-        <span className="h-[calc(var(--h)*0.75)] w-px bg-ink/15" />
-        <img src={logo} alt="Madhya Pradesh Travel Mart, The heart of Incredible India" className="h-(--h) w-auto min-w-0" />
+    <main className="group/shell relative mx-auto flex min-h-dvh w-full max-w-xl flex-col pr-[max(1.25rem,env(safe-area-inset-right))] pl-[max(1.25rem,env(safe-area-inset-left))] pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+      {/* one combined image: partner row above the main mark; height-limited so the steps below still fit.
+          Light screens (intro, gender) mark themselves with data-logo and the logo grows into the free space,
+          capped by the screen width (logo is 900×842, so height ≤ width × 0.93) so it never letterboxes. */}
+      <header className="flex justify-center pt-1">
+        <img
+          src={logo}
+          alt="Govt. of MP, MP Tourism, MPT, FICCI · Madhya Pradesh Travel Mart, 07-10 Oct 2026, Bhopal"
+          className="h-[clamp(7rem,20dvh,12rem)] w-auto max-w-full object-contain transition-[height] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] group-has-[[data-logo=lg]]/shell:h-[min(clamp(9rem,30dvh,18rem),calc((100vw-2.5rem)*0.93))] group-has-[[data-logo=xl]]/shell:h-[min(clamp(11rem,42dvh,24rem),calc((100vw-2.5rem)*0.93))] select-none [-webkit-touch-callout:none]"
+        />
       </header>
-      <Link to="/settings" aria-label="Settings" className="absolute right-3 bottom-1 text-ink/20 transition hover:text-ink/70">
-        <HiOutlineCog6Tooth className="size-4" />
-      </Link>
       <div className="flex flex-1 flex-col justify-center pt-4">{children}</div>
     </main>
   )
@@ -116,61 +108,44 @@ function GenderCard({ label, Icon, picked, dimmed, onPick }) {
   )
 }
 
-function Scan() {
-  const navigate = useNavigate()
-  const [invalid, setInvalid] = useState(false)
-  const timer = useRef(null)
-
-  useEffect(() => () => clearTimeout(timer.current), [])
-
-  const onResult = (text) => {
-    const query = parseWallCode(text)
-    if (query) {
-      navigator.vibrate?.(40)
-      navigate(`/control?${query}`)
-      return
-    }
-    setInvalid(true)
-    clearTimeout(timer.current)
-    timer.current = setTimeout(() => setInvalid(false), 2000)
-  }
-
+// Large landing action: icon disc · label · trailing arrow. `href` → link, otherwise a button.
+function IntroAction({ Icon, label, Trail, primary = false, ...rest }) {
+  const Tag = rest.href ? motion.a : motion.button
   return (
-    <motion.div {...fadeUp}>
-      <GlassCard className="p-6 text-center sm:p-8">
-        <h1 className="font-display text-2xl sm:text-3xl">Scan a wall to begin</h1>
-        <p className="mt-2 text-mist/75">Point the camera at the QR code on any display.</p>
-        {/* width capped by screen height, so header + title + camera always fit without cropping */}
-        <div className="relative mx-auto mt-6 w-full max-w-[min(100%,42dvh)]">
-          <QrScanner onResult={onResult} />
-          <AnimatePresence>
-            {invalid && (
-              <motion.p
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 8 }}
-                transition={{ duration: 0.3, ease }}
-                className="glass absolute inset-x-6 bottom-6 rounded-xl px-4 py-2 text-center text-sm"
-              >
-                That isn't a festival wall code
-              </motion.p>
-            )}
-          </AnimatePresence>
-        </div>
-      </GlassCard>
-    </motion.div>
+    <Tag
+      {...tap}
+      className={`group flex w-full items-center gap-4 rounded-2xl px-4 py-4 text-left transition-[background-color,border-color,box-shadow] duration-300 sm:gap-5 sm:px-5 sm:py-5 ${
+        primary
+          ? 'bg-plum text-white shadow-[0_18px_40px_-18px_rgb(174_74_132/0.75)] hover:bg-plum-soft'
+          : 'glass border border-ink/10 text-ink hover:border-plum/40'
+      }`}
+      {...rest}
+    >
+      <span
+        className={`grid size-12 shrink-0 place-items-center rounded-full sm:size-14 ${
+          primary ? 'bg-white/15 ring-1 ring-white/30' : 'bg-plum/10 text-plum ring-1 ring-plum/20'
+        }`}
+      >
+        <Icon className="size-6 sm:size-7" strokeWidth={1.5} />
+      </span>
+      <span className="flex-1 font-display text-xl tracking-wide sm:text-2xl">{label}</span>
+      <Trail
+        className={`size-5 shrink-0 transition-transform duration-300 group-hover:translate-x-1 ${primary ? 'text-white/80' : 'text-plum/70'}`}
+      />
+    </Tag>
   )
 }
 
 function Flow({ wall, male, female }) {
-  const navigate = useNavigate()
-  const [step, setStep] = useState('gender')
+  const [step, setStep] = useState('intro')
   const [targetId, setTargetId] = useState(null)
   const [file, setFile] = useState(null)
   const [preview, setPreview] = useState(null)
   const [result, setResult] = useState(null)
   const [error, setError] = useState(null)
   const [elapsed, setElapsed] = useState(0)
+  const [saving, setSaving] = useState(false)
+  const image = useRef(null) // Promise<Blob> of the result, fetched as soon as it shows
 
   useEffect(() => {
     if (!file) return
@@ -183,7 +158,12 @@ function Flow({ wall, male, female }) {
     if (step !== 'processing') return
     setElapsed(0)
     const t = setInterval(() => setElapsed((s) => s + 1), 1000)
-    return () => clearInterval(t)
+    // Keep the screen on while waiting (up to ~2 min): a locked phone can drop the request, on iOS especially.
+    const lock = navigator.wakeLock?.request('screen').catch(() => null)
+    return () => {
+      clearInterval(t)
+      lock?.then((l) => l?.release())
+    }
   }, [step])
 
   // Picked card pulses briefly before the step changes.
@@ -196,6 +176,45 @@ function Flow({ wall, male, female }) {
   const goGender = () => {
     setTargetId(null)
     setStep('gender')
+  }
+
+  // Fetch the result in the background, so the tap saves it instantly (iOS only allows a download right after a tap).
+  useEffect(() => {
+    if (!result) return
+    image.current = fetch(fromServer(result.final_image_url)).then((r) => (r.ok ? r.blob() : Promise.reject()))
+    image.current.catch(() => {}) // handled on tap
+  }, [result])
+
+  // Success screen, then back to the start for the next portrait.
+  useEffect(() => {
+    if (step !== 'done') return
+    const t = setTimeout(() => {
+      setFile(null)
+      setTargetId(null)
+      setResult(null)
+      setStep('intro')
+    }, DONE_MS)
+    return () => clearTimeout(t)
+  }, [step])
+
+  const download = async () => {
+    setSaving(true)
+    try {
+      const blob = await image.current
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = `MP-Travel-Mart-${result.final_image?.split('/').pop() || 'portrait.png'}`
+      a.click()
+      setTimeout(() => URL.revokeObjectURL(a.href), 60_000)
+      await markDownloaded(result.view_url)
+    } catch {
+      // image not fetchable from here (app on another origin): let the browser download the attachment itself.
+      // download.php flags the record itself; only view.php still needs pinging.
+      window.location.href = downloadUrl(result.view_url)
+      await markDownloaded(result.view_url).catch(() => {})
+    }
+    setSaving(false)
+    setStep('done')
   }
 
   const submit = async () => {
@@ -217,10 +236,31 @@ function Flow({ wall, male, female }) {
   // initial={false}: the wrapper in ControlPage already animates the first step in
   return (
     <AnimatePresence mode="wait" initial={false}>
+      {step === 'intro' && (
+        <motion.div key="intro" data-logo="xl" {...fadeUp}>
+          {/* no title: the logo above says it all, just the two actions */}
+          <motion.div {...stagger} className="mx-auto flex w-full max-w-md flex-col gap-4">
+            <motion.div {...rise}>
+              <IntroAction primary Icon={HiOutlineCamera} label="Capture image" Trail={HiOutlineArrowRight} onClick={() => setStep('gender')} />
+            </motion.div>
+            <motion.div {...rise}>
+              <IntroAction
+                Icon={HiOutlineGlobeAlt}
+                label="Know more"
+                Trail={HiOutlineArrowUpRight}
+                href={config.knowMoreUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+              />
+            </motion.div>
+          </motion.div>
+        </motion.div>
+      )}
+
       {step === 'gender' && (
-        <motion.div key="gender" {...fadeUp}>
+        <motion.div key="gender" data-logo="lg" {...fadeUp}>
           <GlassCard className="p-6 sm:p-8">
-            <StepHeader step="gender" onBack={() => navigate('/control')} />
+            <StepHeader step="gender" onBack={() => setStep('intro')} />
             <h1 className="font-display text-2xl sm:text-3xl">Choose your portrait</h1>
             <p className="mt-2 text-mist/75">Pick one to continue.</p>
             <motion.div {...stagger} className="mt-6 grid grid-cols-2 gap-3 sm:gap-4">
@@ -295,18 +335,71 @@ function Flow({ wall, male, female }) {
       )}
 
       {step === 'result' && (
-        <motion.div key="result" {...fadeUp} className="space-y-3">
+        <motion.div key="result" {...fadeUp}>
           <StatusView status="completed" imageUrl={fromServer(result.final_image_url)}>
-            <div className="flex flex-col items-center gap-2.5 text-center">
-              <div className="rounded-2xl bg-white p-2.5 shadow-[0_14px_40px_-20px_rgb(43_26_36/0.45)]">
-                <QRCodeSVG value={result.view_url} size={200} className="block size-[clamp(140px,22dvh,220px)]" />
-              </div>
-              <p className="text-sm text-mist/80">Scan with your phone to download, or scan the wall screen.</p>
-            </div>
+            <Button onClick={download} disabled={saving} className="w-full">
+              {saving ? (
+                <motion.span
+                  className="size-5 rounded-full border-2 border-white/30 border-t-white"
+                  animate={{ rotate: 360 }}
+                  transition={{ repeat: Infinity, duration: 0.9, ease: 'linear' }}
+                />
+              ) : (
+                <HiOutlineArrowDownTray className="size-5" />
+              )}
+              {saving ? 'Saving…' : 'Download'}
+            </Button>
           </StatusView>
-          <Button variant="ghost" onClick={() => navigate('/control', { replace: true })} className="w-full">
-            Next visitor
-          </Button>
+        </motion.div>
+      )}
+
+      {step === 'done' && (
+        <motion.div key="done" {...fadeUp}>
+          <GlassCard className="flex flex-col items-center px-8 py-12 text-center">
+            <span className="relative grid size-24 place-items-center">
+              {/* two soft rings ripple out once the badge lands */}
+              {[0, 1].map((i) => (
+                <motion.span
+                  key={i}
+                  className="absolute inset-0 rounded-full border-2 border-leaf/40"
+                  initial={{ scale: 1, opacity: 0 }}
+                  animate={{ scale: 1.9, opacity: [0, 0.8, 0] }}
+                  transition={{ duration: 1.4, ease, delay: 0.35 + i * 0.3 }}
+                />
+              ))}
+              <motion.span
+                className="grid size-24 place-items-center rounded-full bg-leaf text-white shadow-[0_18px_40px_-16px_rgb(0_152_70/0.7)]"
+                initial={{ scale: 0, rotate: -45 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ type: 'spring', stiffness: 260, damping: 18 }}
+              >
+                <motion.span
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ duration: 0.4, ease, delay: 0.25 }}
+                >
+                  <HiOutlineCheck className="size-12" strokeWidth={2.25} />
+                </motion.span>
+              </motion.span>
+            </span>
+            <motion.div {...stagger} className="mt-8">
+              <motion.h2 {...rise} className="font-display text-3xl">
+                Downloaded
+              </motion.h2>
+              <motion.p {...rise} className="mt-2 text-mist/80">
+                Your portrait is saved on your phone. Thank you!
+              </motion.p>
+            </motion.div>
+            {/* time left before returning to the start */}
+            <span className="mt-8 h-1 w-40 overflow-hidden rounded-full bg-ink/10">
+              <motion.span
+                className="block h-full rounded-full bg-leaf"
+                initial={{ width: '100%' }}
+                animate={{ width: '0%' }}
+                transition={{ duration: DONE_MS / 1000, ease: 'linear' }}
+              />
+            </span>
+          </GlassCard>
         </motion.div>
       )}
 
@@ -323,37 +416,25 @@ function Flow({ wall, male, female }) {
 }
 
 export default function ControlPage() {
-  const [device] = useDevice()
   const [params] = useSearchParams()
-  const query = params.toString()
   const scanned = REQUIRED.every((k) => params.get(k))
 
-  if (device.role !== 'controller') {
-    return (
-      <Shell>
-        <motion.div {...fadeUp}>
-          <GlassCard className="flex flex-col items-center gap-4 px-8 py-14 text-center">
-            <HiOutlineLockClosed className="size-12 text-plum" />
-            <h1 className="font-display text-3xl">Not authorized</h1>
-            <p className="max-w-sm text-mist/80">Please use the festival tablet to scan the wall.</p>
-          </GlassCard>
-        </motion.div>
-      </Shell>
-    )
-  }
-
-  // Keyed on the query string: a new scan cross-fades into a fresh flow; "Next visitor" fades back to the scanner.
+  // Visitors land here from the wall QR (phone camera). Keyed on the query string, so a new scan starts a fresh flow.
   return (
     <Shell>
-      <AnimatePresence mode="wait">
-        {scanned ? (
-          <motion.div key={query} {...fadeUp}>
-            <Flow wall={params.get('wall')} male={params.get('m')} female={params.get('f')} />
-          </motion.div>
-        ) : (
-          <Scan key="scan" />
-        )}
-      </AnimatePresence>
+      {scanned ? (
+        <motion.div key={params.toString()} {...fadeUp}>
+          <Flow wall={params.get('wall')} male={params.get('m')} female={params.get('f')} />
+        </motion.div>
+      ) : (
+        <motion.div {...fadeUp}>
+          <GlassCard className="flex flex-col items-center gap-4 px-8 py-14 text-center">
+            <HiOutlineQrCode className="size-12 text-plum" />
+            <h1 className="font-display text-3xl">Scan a wall to begin</h1>
+            <p className="max-w-sm text-mist/80">Point your phone camera at the QR code on any festival display.</p>
+          </GlassCard>
+        </motion.div>
+      )}
     </Shell>
   )
 }

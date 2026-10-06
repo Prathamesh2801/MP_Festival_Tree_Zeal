@@ -23,3 +23,16 @@ async function post(endpoint, fields) {
 export const generate = ({ sseId, id, file }) =>
   post('api.php', { sse_id: sseId, id, source: file })
 
+// download.php = same file as view_url's page, sent as an attachment; requesting it flags the record `downloaded`.
+export const downloadUrl = (viewUrl) => viewUrl.replace('/view.php?', '/download.php?')
+
+// Tell the server the visitor saved the result: download.php → `downloaded: true` (wall hides the result),
+// then view.php → status `waiting` (wall resumes the video rotation). HEAD: the PHP runs, no body is sent back.
+// no-cors: works even when the app isn't on the API's origin (the response isn't needed).
+// ponytail: relies on the host running PHP for HEAD (Apache/nginx+fpm do); switch to GET if a host short-circuits it.
+export async function markDownloaded(viewUrl) {
+  const ping = (url) => fetch(fromServer(url), { method: 'HEAD', mode: 'no-cors', cache: 'no-store' }).catch(() => {})
+  await ping(downloadUrl(viewUrl))
+  await ping(viewUrl)
+}
+
