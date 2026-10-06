@@ -24,18 +24,19 @@ export default function SettingsPage() {
   }
 
   return (
-    <main className="flex min-h-full items-center justify-center p-4">
-      <GlassCard className="w-full max-w-lg p-8">
-        <p className="text-xs uppercase tracking-[0.3em] text-plum">Madhya Pradesh Travel Mart</p>
-        <h1 className="mt-2 font-display text-4xl">Device setup</h1>
+    // Everything below is sized in em off this one font size, which follows the screen (phone ≈ 16px, wall tablet ≈ 26px+).
+    <main className="flex min-h-full items-center justify-center p-[4vmin] text-[clamp(1rem,3.6vmin,2rem)]">
+      <GlassCard className="w-full max-w-[34em] rounded-[1.5em] p-[2em]">
+        <p className="text-[0.75em] tracking-[0.3em] text-plum uppercase">Madhya Pradesh Travel Mart</p>
+        <h1 className="mt-[0.3em] font-display text-[2.25em] leading-tight">Device setup</h1>
 
-        <form onSubmit={submit} className="mt-8 space-y-6">
-          <fieldset className="grid gap-3 sm:grid-cols-2">
-            <legend className="mb-3 text-sm text-mist/80">This device is a</legend>
+        <form onSubmit={submit} className="mt-[2em] space-y-[1.5em]">
+          <fieldset className="grid grid-cols-2 gap-[0.75em]">
+            <legend className="mb-[0.75em] text-[0.875em] text-mist/80">This device is a</legend>
             {ROLES.map(({ value, label, icon: Icon, hint }) => (
               <label
                 key={value}
-                className={`cursor-pointer rounded-2xl border p-4 transition ${
+                className={`cursor-pointer rounded-[1em] border p-[1em] transition ${
                   role === value ? 'border-plum/70 bg-plum/10' : 'border-ink/10 bg-white/30 hover:border-ink/25'
                 }`}
               >
@@ -47,16 +48,16 @@ export default function SettingsPage() {
                   onChange={() => setRole(value)}
                   className="sr-only"
                 />
-                <Icon className="size-6 text-plum" />
-                <span className="mt-3 block font-medium">{label}</span>
-                <span className="mt-1 block text-sm text-mist/70">{hint}</span>
+                <Icon className="size-[1.75em] text-plum" />
+                <span className="mt-[0.6em] block font-medium">{label}</span>
+                <span className="mt-[0.25em] block text-[0.875em] text-mist/70">{hint}</span>
               </label>
             ))}
           </fieldset>
 
           {role === 'wall' && (
             <label className="block">
-              <span className="text-sm text-mist/80">Channel number</span>
+              <span className="text-[0.875em] text-mist/80">Channel number</span>
               <input
                 type="number"
                 min="1"
@@ -64,13 +65,13 @@ export default function SettingsPage() {
                 required
                 value={channel}
                 onChange={(e) => setChannel(e.target.value)}
-                className="mt-2 w-full rounded-xl border border-ink/15 bg-white/50 px-4 py-3 text-lg outline-none focus:border-plum/70"
+                className="mt-[0.5em] w-full rounded-[0.75em] border border-ink/15 bg-white/50 px-[0.8em] py-[0.5em] text-[1.25em] outline-none focus:border-plum/70"
               />
-              <span className="mt-2 block text-xs text-mist/60">Stream id: {config.wallIdPrefix}{channel}</span>
+              <span className="mt-[0.5em] block text-[0.75em] text-mist/60">Stream id: {config.wallIdPrefix}{channel}</span>
             </label>
           )}
 
-          <Button type="submit" className="w-full">
+          <Button type="submit" className="w-full rounded-[0.75em]! py-[0.8em]! text-[1.1em]">
             Save
           </Button>
         </form>

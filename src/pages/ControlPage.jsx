@@ -5,14 +5,11 @@ import {
   HiOutlineArrowLeft,
   HiOutlineArrowPath,
   HiOutlineCamera,
-  HiOutlineCheck,
   HiOutlineCog6Tooth,
   HiOutlineLockClosed,
-  HiOutlinePaperAirplane,
-  HiOutlineQrCode,
 } from 'react-icons/hi2'
 import { QRCodeSVG } from 'qrcode.react'
-import { TbBrandWhatsapp, TbGenderFemale, TbGenderMale } from 'react-icons/tb'
+import { TbGenderFemale, TbGenderMale } from 'react-icons/tb'
 import Button from '../components/ui/Button'
 import GlassCard from '../components/ui/GlassCard'
 import PartnerGrid from '../components/ui/PartnerGrid'
@@ -20,15 +17,15 @@ import QrScanner from '../components/ui/QrScanner'
 import StatusView from '../components/ui/StatusView'
 import { ease, fadeUp, rise, stagger } from '../constants/motion'
 import { useDevice } from '../hooks/useDevice'
-import { fetchInfo, fromServer, generate, sendWhatsApp } from '../services/api/festival'
+import { fromServer, generate } from '../services/api/festival'
 import logo from '../assets/logo.png'
 
-const REQUIRED = ['wall', 'm', 'f', 'info']
-const STEPS = ['info', 'gender', 'selfie']
-// Logo wordmark order: MADHYA (plum) · PRADESH (leaf) · TRAVEL (saffron)
-const STEP_COLORS = ['bg-plum', 'bg-leaf', 'bg-saffron']
+const REQUIRED = ['wall', 'm', 'f']
+const STEPS = ['gender', 'selfie']
+// Logo wordmark colours: MADHYA (plum) · PRADESH (leaf)
+const STEP_COLORS = ['bg-plum', 'bg-leaf']
 
-// Wall QR = `<app url>#/control?wall=..&m=..&f=..&info=..` → returns its query string, or null if not ours.
+// Wall QR = `<app url>#/control?wall=..&m=..&f=..` → returns its query string, or null if not ours.
 function parseWallCode(text) {
   try {
     const query = new URL(text).hash.split('?')[1] || ''
@@ -57,7 +54,7 @@ function Shell({ children }) {
   )
 }
 
-// Back · 3-segment progress (info → gender → selfie) · counter. Each step's card renders its own;
+// Back · 2-segment progress (gender → selfie) · counter. Each step's card renders its own;
 // earlier segments start full and only the current one fills, so the bar reads as continuous.
 function StepHeader({ step, onBack }) {
   const current = STEPS.indexOf(step)
@@ -119,137 +116,6 @@ function GenderCard({ label, Icon, picked, dimmed, onPick }) {
   )
 }
 
-// For visitors without their phone at hand: type a number and the server WhatsApps the image.
-function WhatsAppForm({ wall, result }) {
-  const [phone, setPhone] = useState('+91 ')
-  const [sending, setSending] = useState(false)
-  const [sentTo, setSentTo] = useState(null)
-  const [error, setError] = useState(null)
-  const number = phone.replace(/[\s-]/g, '')
-  const valid = /^\+\d{10,15}$/.test(number)
-
-  const submit = async (e) => {
-    e.preventDefault()
-    setSending(true)
-    setError(null)
-    try {
-      await sendWhatsApp({ sseId: wall, phone: number.slice(1), imageUrl: result.final_image_url, viewUrl: result.view_url })
-      setSentTo(phone.trim())
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setSending(false)
-    }
-  }
-
-  return (
-    <div className="w-full">
-      <AnimatePresence mode="wait" initial={false}>
-        {sentTo ? (
-          <motion.div key="sent" {...fadeUp} className="flex flex-col items-center gap-2 py-2 text-center">
-            <span className="mb-1 grid size-12 place-items-center rounded-full bg-leaf/15 text-leaf">
-              <HiOutlineCheck className="size-6" />
-            </span>
-            <p className="font-display text-xl">Sent to WhatsApp</p>
-            <p className="text-sm text-mist/80 tabular-nums">{sentTo}</p>
-            <button onClick={() => setSentTo(null)} className="mt-1 text-sm text-plum underline-offset-4 hover:underline">
-              Send to another number
-            </button>
-          </motion.div>
-        ) : (
-          <motion.form key="form" {...fadeUp} onSubmit={submit} className="text-center">
-            <p className="font-display text-xl">No phone with you?</p>
-            <p className="mt-1 text-sm text-mist/75">Enter your WhatsApp number and we'll send the portrait there.</p>
-            <div className="mt-3 flex gap-2 text-left">
-              <input
-                type="tel"
-                inputMode="tel"
-                autoComplete="tel"
-                aria-label="WhatsApp number"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value.replace(/[^\d+\s-]/g, ''))}
-                className="min-w-0 flex-1 rounded-xl border border-ink/15 bg-white/60 px-4 py-3 text-lg tracking-wide tabular-nums outline-none transition focus:border-plum focus:ring-4 focus:ring-plum/15"
-              />
-              <Button type="submit" disabled={!valid || sending} aria-label="Send" className="shrink-0 px-4">
-                {sending ? (
-                  <motion.span
-                    className="size-5 rounded-full border-2 border-white/30 border-t-white"
-                    animate={{ rotate: 360 }}
-                    transition={{ repeat: Infinity, duration: 0.9, ease: 'linear' }}
-                  />
-                ) : (
-                  <HiOutlinePaperAirplane className="size-5" />
-                )}
-              </Button>
-            </div>
-            {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
-          </motion.form>
-        )}
-      </AnimatePresence>
-    </div>
-  )
-}
-
-const SHARE_MODES = [
-  { id: 'qr', label: 'Scan QR', Icon: HiOutlineQrCode },
-  { id: 'whatsapp', label: 'WhatsApp', Icon: TbBrandWhatsapp },
-]
-
-// Two ways to take the portrait home: scan a QR (same view_url as the wall shows) or WhatsApp it.
-// Both panels share one grid cell, so the card keeps the taller one's height and switching never jumps.
-function ShareOptions({ wall, result }) {
-  const [mode, setMode] = useState('qr')
-  return (
-    <div className="w-full">
-      <div role="tablist" className="grid grid-cols-2 rounded-xl border border-ink/10 bg-white/40 p-1">
-        {SHARE_MODES.map(({ id, label, Icon }) => (
-          <button
-            key={id}
-            role="tab"
-            aria-selected={mode === id}
-            onClick={() => setMode(id)}
-            className={`relative flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium transition-colors duration-300 ${
-              mode === id ? 'text-white' : 'text-mist hover:text-ink'
-            }`}
-          >
-            {mode === id && (
-              <motion.span layoutId="share-pill" transition={{ duration: 0.45, ease }} className="absolute inset-0 rounded-lg bg-plum shadow-md" />
-            )}
-            <Icon className="relative size-5" />
-            <span className="relative">{label}</span>
-          </button>
-        ))}
-      </div>
-
-      {/* grid-cols-1 = minmax(0,1fr): without it the track grows to the text's width and pushes the send button out */}
-      <div className="mt-4 grid grid-cols-1">
-        {SHARE_MODES.map(({ id }) => (
-          <motion.div
-            key={id}
-            role="tabpanel"
-            inert={mode !== id}
-            initial={false}
-            animate={{ opacity: mode === id ? 1 : 0, y: mode === id ? 0 : 8 }}
-            transition={{ duration: 0.4, ease }}
-            className="col-start-1 row-start-1 flex flex-col items-center justify-center"
-          >
-            {id === 'qr' ? (
-              <div className="flex flex-col items-center gap-2.5 text-center">
-                <div className="rounded-2xl bg-white p-2.5 shadow-[0_14px_40px_-20px_rgb(43_26_36/0.45)]">
-                  <QRCodeSVG value={result.view_url} size={200} className="block size-[clamp(120px,17dvh,190px)]" />
-                </div>
-                <p className="text-sm text-mist/80">Scan with your phone to download, or scan the wall screen.</p>
-              </div>
-            ) : (
-              <WhatsAppForm wall={wall} result={result} />
-            )}
-          </motion.div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
 function Scan() {
   const navigate = useNavigate()
   const [invalid, setInvalid] = useState(false)
@@ -296,22 +162,15 @@ function Scan() {
   )
 }
 
-function Flow({ wall, male, female, infoUrl }) {
+function Flow({ wall, male, female }) {
   const navigate = useNavigate()
-  const [step, setStep] = useState('info')
-  const [info, setInfo] = useState(null)
+  const [step, setStep] = useState('gender')
   const [targetId, setTargetId] = useState(null)
   const [file, setFile] = useState(null)
   const [preview, setPreview] = useState(null)
   const [result, setResult] = useState(null)
   const [error, setError] = useState(null)
   const [elapsed, setElapsed] = useState(0)
-
-  useEffect(() => {
-    fetchInfo(infoUrl)
-      .then(setInfo)
-      .catch(() => setInfo({ title: 'Welcome', description: '' }))
-  }, [infoUrl])
 
   useEffect(() => {
     if (!file) return
@@ -358,30 +217,10 @@ function Flow({ wall, male, female, infoUrl }) {
   // initial={false}: the wrapper in ControlPage already animates the first step in
   return (
     <AnimatePresence mode="wait" initial={false}>
-      {step === 'info' && (
-        <motion.div key="info" {...fadeUp}>
-          <GlassCard className="p-6 sm:p-8">
-            <StepHeader step="info" onBack={() => navigate('/control')} />
-            <p className="text-xs tracking-[0.3em] text-plum uppercase">Your destination</p>
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.div key={info ? 'loaded' : 'loading'} {...fadeUp}>
-                <h1 className="mt-2 font-display text-3xl leading-tight sm:text-4xl">{info?.title || 'Loading…'}</h1>
-                <p className="mt-3 max-h-[34dvh] overflow-y-auto leading-relaxed whitespace-pre-line text-mist/85">
-                  {info?.description}
-                </p>
-              </motion.div>
-            </AnimatePresence>
-            <Button onClick={goGender} disabled={!info} className="mt-6 w-full">
-              Continue
-            </Button>
-          </GlassCard>
-        </motion.div>
-      )}
-
       {step === 'gender' && (
         <motion.div key="gender" {...fadeUp}>
           <GlassCard className="p-6 sm:p-8">
-            <StepHeader step="gender" onBack={() => setStep('info')} />
+            <StepHeader step="gender" onBack={() => navigate('/control')} />
             <h1 className="font-display text-2xl sm:text-3xl">Choose your portrait</h1>
             <p className="mt-2 text-mist/75">Pick one to continue.</p>
             <motion.div {...stagger} className="mt-6 grid grid-cols-2 gap-3 sm:gap-4">
@@ -458,7 +297,12 @@ function Flow({ wall, male, female, infoUrl }) {
       {step === 'result' && (
         <motion.div key="result" {...fadeUp} className="space-y-3">
           <StatusView status="completed" imageUrl={fromServer(result.final_image_url)}>
-            <ShareOptions wall={wall} result={result} />
+            <div className="flex flex-col items-center gap-2.5 text-center">
+              <div className="rounded-2xl bg-white p-2.5 shadow-[0_14px_40px_-20px_rgb(43_26_36/0.45)]">
+                <QRCodeSVG value={result.view_url} size={200} className="block size-[clamp(140px,22dvh,220px)]" />
+              </div>
+              <p className="text-sm text-mist/80">Scan with your phone to download, or scan the wall screen.</p>
+            </div>
           </StatusView>
           <Button variant="ghost" onClick={() => navigate('/control', { replace: true })} className="w-full">
             Next visitor
@@ -504,7 +348,7 @@ export default function ControlPage() {
       <AnimatePresence mode="wait">
         {scanned ? (
           <motion.div key={query} {...fadeUp}>
-            <Flow wall={params.get('wall')} male={params.get('m')} female={params.get('f')} infoUrl={params.get('info')} />
+            <Flow wall={params.get('wall')} male={params.get('m')} female={params.get('f')} />
           </motion.div>
         ) : (
           <Scan key="scan" />

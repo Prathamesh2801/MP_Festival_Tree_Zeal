@@ -4,7 +4,6 @@ import { sseUrl } from '../services/api/festival'
 export function useFestivalStream(sseId) {
   const [record, setRecord] = useState(null)
   const [waitingSet, setWaitingSet] = useState(null)
-  const [online, setOnline] = useState(false)
 
   useEffect(() => {
     if (!sseId) return
@@ -18,10 +17,8 @@ export function useFestivalStream(sseId) {
     }
     es.addEventListener('status', parse(setRecord))
     es.addEventListener('waiting', parse(setWaitingSet))
-    es.onopen = () => setOnline(true)
-    es.onerror = () => setOnline(false) // EventSource reconnects by itself
     return () => es.close()
   }, [sseId])
 
-  return { record, waitingSet, online }
+  return { record, waitingSet } // EventSource reconnects by itself
 }

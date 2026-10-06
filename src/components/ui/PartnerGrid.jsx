@@ -11,10 +11,10 @@ const PARTNERS = [
   { src: ficci, alt: 'FICCI, Knowledge Partner' },
 ]
 
-// 2 × 2 square of partner logos; size it with `className` (e.g. `size-24`).
-export default function PartnerGrid({ className = '' }) {
+// 2 × 2 square of partner logos (or one row of 4 with `row`); size it with `className`.
+export default function PartnerGrid({ className = '', row = false }) {
   return (
-    <div className={`grid shrink-0 grid-cols-2 grid-rows-2 gap-[8%] ${className}`}>
+    <div className={`grid shrink-0 ${row ? 'grid-cols-4 gap-x-[6%]' : 'grid-cols-2 grid-rows-2 gap-[8%]'} ${className}`}>
       {PARTNERS.map((p) => (
         <img key={p.alt} src={p.src} alt={p.alt} className="size-full min-h-0 min-w-0 object-contain" />
       ))}
